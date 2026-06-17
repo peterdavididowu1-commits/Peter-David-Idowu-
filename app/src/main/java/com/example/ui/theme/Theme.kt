@@ -5,30 +5,47 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 
-private val DarkColorScheme = darkColorScheme(
-    primary = ElegantDarkPrimary,
-    onPrimary = ElegantDarkOnPrimary,
-    primaryContainer = ElegantDarkPrimaryContainer,
-    onPrimaryContainer = ElegantDarkOnPrimaryContainer,
-    secondary = ElegantDarkSecondary,
-    onSecondary = ElegantDarkOnSecondary,
-    secondaryContainer = ElegantDarkSecondaryContainer,
-    onSecondaryContainer = ElegantDarkOnSecondaryContainer,
-    background = ElegantDarkBackground,
-    onBackground = ElegantDarkText,
-    surface = ElegantDarkSurface,
-    onSurface = ElegantDarkOnSurface,
-    surfaceVariant = ElegantDarkSurfaceVariant,
-    onSurfaceVariant = ElegantDarkOnSurfaceVariant,
-    outline = ElegantDarkOutline,
-    error = ElegantDarkError,
-    onError = ElegantDarkOnError,
-    errorContainer = ElegantDarkErrorContainer,
-    onErrorContainer = ElegantDarkOnErrorContainer
+private val LightColorScheme = lightColorScheme(
+    primary = SchoolNavyPrimary,
+    onPrimary = SchoolOnNavy,
+    primaryContainer = SchoolNavyPrimary.copy(alpha = 0.1f),
+    onPrimaryContainer = SchoolNavyPrimary,
+    secondary = SchoolRoyalSecondary,
+    onSecondary = SchoolOnRoyal,
+    secondaryContainer = SchoolRoyalSecondary.copy(alpha = 0.1f),
+    onSecondaryContainer = SchoolRoyalSecondary,
+    background = SchoolIceBackground,
+    onBackground = SchoolTextPrimary,
+    surface = SchoolOffWhiteSurface,
+    onSurface = SchoolTextPrimary,
+    surfaceVariant = SchoolIceBackground,
+    onSurfaceVariant = SchoolTextSecondary,
+    outline = SchoolBoundaryOutline,
+    error = SchoolErrorRed,
+    onError = Color.White
 )
 
-private val LightColorScheme = DarkColorScheme // Always enforce Elegant Dark
+private val DarkColorScheme = darkColorScheme(
+    primary = SchoolRoyalSecondary,
+    onPrimary = Color.White,
+    primaryContainer = SchoolNavyPrimary,
+    onPrimaryContainer = Color.White,
+    secondary = SchoolRoyalSecondary,
+    onSecondary = Color.White,
+    secondaryContainer = SchoolNavyPrimary.copy(alpha = 0.3f),
+    onSecondaryContainer = Color.White,
+    background = Color(0xFF0F172A), // Elegant dark slate
+    onBackground = Color(0xFFF8FAFC),
+    surface = Color(0xFF1E293B),
+    onSurface = Color(0xFFF8FAFC),
+    surfaceVariant = Color(0xFF334155),
+    onSurfaceVariant = Color(0xFFCBD5E1),
+    outline = Color(0xFF475569),
+    error = SchoolErrorRed,
+    onError = Color.White
+)
 
 @Composable
 fun HisGraceTheme(

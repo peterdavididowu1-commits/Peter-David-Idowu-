@@ -210,7 +210,7 @@ class SchoolRepository(private val dao: SchoolDao) {
                     parentName = "Chief Edwin Okafor",
                     parentPhone = "08055551234",
                     parentEmail = "okafor.edwin@example.com",
-                    address = "12 Grace Close, Lekki, Lagos"
+                    address = "12 Grace Close, Abeokuta, Ogun State"
                 )
             ).toInt()
 
@@ -241,7 +241,7 @@ class SchoolRepository(private val dao: SchoolDao) {
                     parentName = "Pastor Kolawole Adebayo",
                     parentPhone = "08122334455",
                     parentEmail = "kola.adebayo@example.com",
-                    address = "Plot 64, His Grace Estate, Ikorodu"
+                    address = "Plot 64, Odeda Road, Abeokuta"
                 )
             ).toInt()
 
@@ -272,7 +272,7 @@ class SchoolRepository(private val dao: SchoolDao) {
                     parentName = "Alhaji Bello Ibrahim",
                     parentPhone = "09044331122",
                     parentEmail = "bello_ibro@example.com",
-                    address = "Hassan Avenue, Ikeja"
+                    address = "Hassan Avenue, Odeda, Abeokuta"
                 )
             ).toInt()
 

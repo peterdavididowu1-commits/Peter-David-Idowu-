@@ -2,26 +2,22 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Elegant Dark Palette Colors
-val ElegantDarkBackground = Color(0xFF1C1B1F)
-val ElegantDarkText = Color(0xFFE6E1E5)
-val ElegantDarkPrimary = Color(0xFFD0BCFF)
-val ElegantDarkOnPrimary = Color(0xFF381E72)
-val ElegantDarkPrimaryContainer = Color(0xFFEADDFF)
-val ElegantDarkOnPrimaryContainer = Color(0xFF21005D)
+// Premium Academic Blue & White Palette
+val SchoolNavyPrimary = Color(0xFF1E3A8A)       // Deep Indigo/Navy Blue
+val SchoolOnNavy = Color(0xFFFFFFFF)            // Pure White for text on blue
+val SchoolRoyalSecondary = Color(0xFF2563EB)   // Lighter, vibrant Royal Blue
+val SchoolOnRoyal = Color(0xFFFFFFFF)           // Text on Royal Blue
 
-val ElegantDarkSecondary = Color(0xFFCCC2DC)
-val ElegantDarkOnSecondary = Color(0xFF332D41)
-val ElegantDarkSecondaryContainer = Color(0xFF4A4458)
-val ElegantDarkOnSecondaryContainer = Color(0xFFE8DEF8)
+// Background and Surface tones
+val SchoolIceBackground = Color(0xFFF8FAFC)     // Light Slate/Ice Blue tinted background
+val SchoolOffWhiteSurface = Color(0xFFFFFFFF)   // Pure white card surfaces
+val SchoolTextPrimary = Color(0xFF0F172A)       // Dark Slate Core text (extremely readable)
+val SchoolTextSecondary = Color(0xFF475569)     // Slate Gray for secondary paragraphs
 
-val ElegantDarkSurface = Color(0xFF2B2930)
-val ElegantDarkOnSurface = Color(0xFFE6E1E5)
-val ElegantDarkSurfaceVariant = Color(0xFF49454F)
-val ElegantDarkOnSurfaceVariant = Color(0xFFCAC4D0)
+val SchoolAccentGold = Color(0xFFF59E0B)        // Gold Beacon Accent color (for badges/announcements)
+val SchoolOnAccent = Color(0xFF78350F)
 
-val ElegantDarkOutline = Color(0xFF938F99)
-val ElegantDarkError = Color(0xFFF2B8B5)
-val ElegantDarkOnError = Color(0xFF601410)
-val ElegantDarkErrorContainer = Color(0xFF8C1D18)
-val ElegantDarkOnErrorContainer = Color(0xFFF9DEDC)
+val SchoolBoundaryOutline = Color(0xFFE2E8F0)   // Light borders for cards
+val SchoolErrorRed = Color(0xFFDC2626)          // Error Red
+val SchoolSuccessGreen = Color(0xFF16A34A)      // Success Green
+
