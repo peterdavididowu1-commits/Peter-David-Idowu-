@@ -45,12 +45,42 @@ const initLocalStorageDB = () => {
     localStorage.setItem('hgs_messages', JSON.stringify([]));
   }
   if (!localStorage.getItem('hgs_administrators')) {
-    // Create first default admin profile in local storage if not exists
     localStorage.setItem('hgs_administrators', JSON.stringify([]));
   }
-  // Simulated Current Session
+  if (!localStorage.getItem('hgs_students')) {
+    // Seed initial high-fidelity student record for dynamic out-of-the-box local exploration
+    localStorage.setItem('hgs_students', JSON.stringify([
+      {
+        id: 'STUD-DEFA-1234',
+        admissionNumber: 'HGS-2026-001',
+        studentName: 'Adebayo Daniel',
+        gender: 'Male',
+        dob: '2020-04-18',
+        gradeApplying: 'Primary 1',
+        parentName: 'Mr. Emmanuel Daniel',
+        parentPhone: '08137606078',
+        parentEmail: 'emmanuel.daniel@gmail.com',
+        homeAddress: 'Agbugburu Village, Abeokuta',
+        password: 'password123',
+        status: 'Active',
+        createdAt: new Date().toISOString(),
+        grades: {
+          english: 90,
+          math: 95,
+          computer: 88,
+          civic: 96,
+          agriculture: 82
+        },
+        coachRemarks: "Daniel continues to show remarkable godly growth, quantitative math logic, and deep obedience to our community guidelines. Approved for next phase!"
+      }
+    ]));
+  }
+  // Simulated Current Sessions
   if (!localStorage.getItem('hgs_session')) {
     localStorage.setItem('hgs_session', null);
+  }
+  if (!localStorage.getItem('hgs_student_session')) {
+    localStorage.setItem('hgs_student_session', null);
   }
 };
 initLocalStorageDB();
@@ -427,4 +457,173 @@ export const getAdministrativeStats = async () => {
     recentMessages: messages.slice(0, 5),
     classBreakdown
   };
+};
+
+// ==========================================
+// STUDENT PROFILE & ACCOUNTS MANAGEMENT
+// ==========================================
+
+export const saveStudent = async (studentData) => {
+  const record = {
+    ...studentData,
+    id: studentData.id || 'STUD-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+    createdAt: studentData.createdAt || new Date().toISOString()
+  };
+
+  if (liveMode && db) {
+    try {
+      const colRef = sdkFirestore.collection(db, "hgs_students");
+      // Check if editing or creating
+      const q = sdkFirestore.query(colRef, sdkFirestore.where("id", "==", record.id));
+      const snapshot = await sdkFirestore.getDocs(q);
+      
+      if (!snapshot.empty) {
+        // Edit existing doc
+        const docId = snapshot.docs[0].id;
+        const docRef = sdkFirestore.doc(db, "hgs_students", docId);
+        await sdkFirestore.updateDoc(docRef, record);
+      } else {
+        // Create new doc
+        await sdkFirestore.addDoc(colRef, record);
+      }
+      return { success: true, id: record.id };
+    } catch (err) {
+      console.error("Firestore saveStudent failed:", err);
+      throw err;
+    }
+  } else {
+    // Local storage fallback
+    const list = JSON.parse(localStorage.getItem('hgs_students') || '[]');
+    const idx = list.findIndex(item => item.id === record.id);
+    if (idx !== -1) {
+      list[idx] = record;
+    } else {
+      list.push(record);
+    }
+    localStorage.setItem('hgs_students', JSON.stringify(list));
+    return { success: true, id: record.id };
+  }
+};
+
+export const getStudents = async () => {
+  if (liveMode && db) {
+    try {
+      const colRef = sdkFirestore.collection(db, "hgs_students");
+      const q = sdkFirestore.query(colRef, sdkFirestore.orderBy("createdAt", "desc"));
+      const snapshot = await sdkFirestore.getDocs(q);
+      const results = [];
+      snapshot.forEach(docSnap => {
+        results.push({ ...docSnap.data(), docId: docSnap.id });
+      });
+      return results;
+    } catch (err) {
+      console.error("Firestore getStudents failed:", err);
+    }
+  }
+  // Local storage fallback
+  const list = JSON.parse(localStorage.getItem('hgs_students') || '[]');
+  return list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+};
+
+export const updateStudent = async (id, updatedFields) => {
+  if (liveMode && db) {
+    try {
+      const colRef = sdkFirestore.collection(db, "hgs_students");
+      const q = sdkFirestore.query(colRef, sdkFirestore.where("id", "==", id));
+      const snapshot = await sdkFirestore.getDocs(q);
+      if (!snapshot.empty) {
+        const docId = snapshot.docs[0].id;
+        const docRef = sdkFirestore.doc(db, "hgs_students", docId);
+        await sdkFirestore.updateDoc(docRef, updatedFields);
+        return { success: true };
+      }
+    } catch (err) {
+      console.error("Firestore updateStudent failed:", err);
+      throw err;
+    }
+  }
+
+  // Local storage fallback
+  const list = JSON.parse(localStorage.getItem('hgs_students') || '[]');
+  const idx = list.findIndex(item => item.id === id);
+  if (idx !== -1) {
+    list[idx] = { ...list[idx], ...updatedFields };
+    localStorage.setItem('hgs_students', JSON.stringify(list));
+    return { success: true };
+  }
+  throw new Error("Student account record not found");
+};
+
+export const deleteStudent = async (id) => {
+  if (liveMode && db) {
+    try {
+      const colRef = sdkFirestore.collection(db, "hgs_students");
+      const q = sdkFirestore.query(colRef, sdkFirestore.where("id", "==", id));
+      const snapshot = await sdkFirestore.getDocs(q);
+      if (!snapshot.empty) {
+        const docId = snapshot.docs[0].id;
+        const docRef = sdkFirestore.doc(db, "hgs_students", docId);
+        await sdkFirestore.deleteDoc(docRef);
+        return { success: true };
+      }
+    } catch (err) {
+      console.error("Firestore deleteStudent failed:", err);
+      throw err;
+    }
+  }
+
+  // Local Storage fallback
+  const list = JSON.parse(localStorage.getItem('hgs_students') || '[]');
+  const filtered = list.filter(item => item.id !== id);
+  localStorage.setItem('hgs_students', JSON.stringify(filtered));
+  return { success: true };
+};
+
+export const loginStudent = async (admissionNumber, password) => {
+  const sanitizedNum = admissionNumber.toUpperCase().trim();
+  const studentsList = await getStudents();
+  
+  const student = studentsList.find(s => 
+    s.admissionNumber && s.admissionNumber.toUpperCase().trim() === sanitizedNum
+  );
+
+  if (!student) {
+    throw new Error("No student record found with this Admission / Registration Number.");
+  }
+
+  if (student.password !== password) {
+    throw new Error("The password you specified is incorrect.");
+  }
+
+  if (student.status === 'Deactivated') {
+    throw new Error("This student portal account is currently Deactivated by School Admin. Please contact registry desk.");
+  }
+
+  const sessionObj = {
+    id: student.id,
+    admissionNumber: student.admissionNumber,
+    studentName: student.studentName,
+    gradeApplying: student.gradeApplying || 'Primary 1',
+    status: student.status,
+    role: "Student"
+  };
+
+  localStorage.setItem('hgs_student_session', JSON.stringify(sessionObj));
+  return { success: true, profile: student };
+};
+
+export const logoutStudent = () => {
+  localStorage.setItem('hgs_student_session', 'null');
+};
+
+export const getActiveStudentSession = () => {
+  const session = localStorage.getItem('hgs_student_session');
+  if (session && session !== 'null') {
+    try {
+      return JSON.parse(session);
+    } catch (e) {
+      return null;
+    }
+  }
+  return null;
 };

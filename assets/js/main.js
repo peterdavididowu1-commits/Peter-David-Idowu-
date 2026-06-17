@@ -198,38 +198,37 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (loginForm) {
-    loginForm.addEventListener('submit', (e) => {
+    loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const submitBtn = loginForm.querySelector('button[type="submit"]');
       const origText = submitBtn.innerHTML;
       
       const role = document.getElementById('portalRole').value;
       const portalIdStr = document.getElementById('portalId').value.trim();
+      const portalPassword = document.getElementById('portalPassword').value;
 
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Opening secure gateway...';
+      if (role === 'Teacher') {
+        alert("Welcome Instructor! Redirecting you to the secure Administrative Center login portal...");
+        window.location.href = 'admin-login.html';
+        return;
+      }
 
-      setTimeout(() => {
+      try {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Authenticating secure student portal...';
+
+        const { loginStudent } = await import('./firebase-core.js');
+        const res = await loginStudent(portalIdStr, portalPassword);
+
+        if (res.success) {
+          window.location.href = 'student-portal.html';
+        }
+      } catch (err) {
+        alert("Authentication error: " + err.message);
+      } finally {
         submitBtn.disabled = false;
         submitBtn.innerHTML = origText;
-
-        if (role === 'Teacher') {
-          // Instructors are guided directly to the executive admin-login form
-          alert("Welcome Instructor! Redirecting you to the secure Administrative Center login portal...");
-          window.location.href = 'admin-login.html';
-        } else {
-          // Compute friendly student identity
-          let testStudentName = "Adebayo Daniel";
-          let testClass = (role === 'Parent') ? "Primary Grade 1 (Parent Account)" : "Primary Grade 1";
-
-          // If they typed something textual (not an alphanumeric ID), utilize that as their student handle for high-fidelity immersion!
-          if (portalIdStr && !portalIdStr.includes('/') && isNaN(portalIdStr) && portalIdStr.length > 3) {
-            testStudentName = portalIdStr;
-          }
-
-          window.location.href = `student-portal.html?name=${encodeURIComponent(testStudentName)}&class=${encodeURIComponent(testClass)}`;
-        }
-      }, 1000);
+      }
     });
   }
 });

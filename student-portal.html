@@ -156,7 +156,7 @@
         <p style="opacity: 0.9; margin-top: 0.25rem;">Nursery & Primary School Student Learning Console.</p>
       </div>
       <div>
-        <a href="login.html" class="btn btn-accent" style="font-size: 0.85rem; padding: 0.5rem 1.25rem;"><i class="fa-solid fa-power-off"></i> Secure Exit</a>
+        <a href="#" class="btn btn-accent" id="logoutBtn" style="font-size: 0.85rem; padding: 0.5rem 1.25rem;"><i class="fa-solid fa-power-off"></i> Secure Exit</a>
       </div>
     </div>
 
@@ -167,6 +167,7 @@
         <div class="text-center" style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1.5rem;">
           <img src="assets/images/logo.jpg" alt="Student avatar placeholder" style="width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 0.75rem auto; border: 3px solid var(--primary);">
           <h4 style="font-size: 1.1rem; color: var(--primary); font-weight: 700;" id="sidebarName">Adebayo Daniel</h4>
+          <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0.15rem 0;" id="studentAdmissionNumber">Admission Number: HGS-2026-001</p>
           <span class="badge" style="font-size: 0.7rem; margin-top: 0.25rem;" id="studentClassBadge">Primary Grade 1</span>
         </div>
         
@@ -238,11 +239,11 @@
               </div>
               <div>
                 <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 700;">Average score</span>
-                <p style="font-size: 1.15rem; font-weight: 800; color: var(--secondary);">86.4% (Outstanding)</p>
+                <p style="font-size: 1.15rem; font-weight: 800; color: var(--secondary);" id="averageScoreText">86.4% (Outstanding)</p>
               </div>
               <div>
                 <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 700;">Attendance Rate</span>
-                <p style="font-size: 1.15rem; font-weight: 800; color: var(--accent);">98% (High Constant)</p>
+                <p style="font-size: 1.15rem; font-weight: 800; color: var(--accent);" id="attendanceRateText">98% (High Constant)</p>
               </div>
             </div>
 
@@ -258,7 +259,7 @@
                     <th style="text-align: center;">Grade Status</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody id="studentGradesBody">
                   <tr>
                     <td><strong>English Language & Phonics</strong></td>
                     <td style="text-align: center;">36</td>
@@ -300,7 +301,7 @@
 
             <div style="border-top: 1.5px solid var(--border-color); padding-top: 1.25rem; font-size: 0.9rem; color: var(--text-dark); background-color: #fafbfc; border-radius: 6px; padding: 1rem; margin-top: 1.5rem;">
               <strong>Remarks of Level Coach:</strong>
-              <p style="font-style: italic; color: var(--text-muted); margin-top: 0.25rem;">"Daniel is a highly obedient, focused, and cooperative child. His quantitative mathematical logic and digital workspace results have been exceptional. Highly active attendee of weekly prayers. Approved and promoted!"</p>
+              <p style="font-style: italic; color: var(--text-muted); margin-top: 0.25rem;" id="coachRemarksText">"Daniel is a highly obedient, focused, and cooperative child. His quantitative mathematical logic and digital workspace results have been exceptional. Highly active attendee of weekly prayers. Approved and promoted!"</p>
             </div>
           </div>
         </section>
@@ -440,20 +441,124 @@
 
   <!-- Script Navigation bindings -->
   <script type="module">
-    document.addEventListener('DOMContentLoaded', () => {
-      // Setup dynamic welcome names if they passed pupil details in the query parameters!
-      const params = new URLSearchParams(window.location.search);
-      const customName = params.get('name');
-      const customClass = params.get('class');
+    import { getActiveStudentSession, logoutStudent, getStudents } from './assets/js/firebase-core.js';
 
-      if (customName) {
-        document.getElementById('studentPortalName').textContent = customName;
-        document.getElementById('sidebarName').textContent = customName;
-      }
-      if (customClass) {
-        document.getElementById('studentClassBadge').textContent = customClass;
+    document.addEventListener('DOMContentLoaded', async () => {
+      // 1. Session verification & Security Wall
+      const session = getActiveStudentSession();
+      if (!session) {
+        window.location.replace('login.html');
+        return;
       }
 
+      // 2. Fetch full student profile mapping
+      let studentProfile = null;
+      try {
+        const list = await getStudents();
+        studentProfile = list.find(item => item.id === session.id);
+      } catch (err) {
+        console.error("Error loaded student records:", err);
+      }
+
+      // Graceful fallback defaults if not found
+      if (!studentProfile) {
+        studentProfile = {
+          studentName: session.studentName,
+          gradeApplying: session.gradeApplying,
+          admissionNumber: session.admissionNumber,
+          grades: { english: 85, math: 88, computer: 80, civic: 92, agriculture: 75 },
+          coachRemarks: "No custom performance evaluation sheet submitted yet. Cooperating nicely."
+        };
+      }
+
+      // Populate layout parameters
+      const portalNameEl = document.getElementById('studentPortalName');
+      const sideNameEl = document.getElementById('sidebarName');
+      const classBadgeEl = document.getElementById('studentClassBadge');
+      const admNumEl = document.getElementById('studentAdmissionNumber');
+
+      if (portalNameEl) portalNameEl.textContent = studentProfile.studentName;
+      if (sideNameEl) sideNameEl.textContent = studentProfile.studentName;
+      if (classBadgeEl) classBadgeEl.textContent = studentProfile.gradeApplying || 'Primary 1';
+      if (admNumEl) admNumEl.textContent = `Admission ID: ${studentProfile.admissionNumber}`;
+
+      // Calculate aggregated averages
+      const g = studentProfile.grades || { english: 0, math: 0, computer: 0, civic: 0, agriculture: 0 };
+      const avg = ((Number(g.english) + Number(g.math) + Number(g.computer) + Number(g.civic) + Number(g.agriculture)) / 5).toFixed(1);
+      
+      let levelText = "Pass Status";
+      if (avg >= 90) levelText = "Outstanding Merit";
+      else if (avg >= 80) levelText = "Outstanding";
+      else if (avg >= 70) levelText = "Very Good";
+      else if (avg >= 50) levelText = "Active Standing";
+      else levelText = "Requires Support";
+
+      const averageScoreEl = document.getElementById('averageScoreText');
+      if (averageScoreEl) {
+        averageScoreEl.textContent = `${avg}% (${levelText})`;
+      }
+
+      const getGradeSymbol = (score) => {
+        if (score >= 90) return 'A+';
+        if (score >= 80) return 'A';
+        if (score >= 70) return 'B+';
+        if (score >= 60) return 'B';
+        if (score >= 50) return 'C';
+        return 'F';
+      };
+
+      // Populate Grades tbody
+      const gradesBody = document.getElementById('studentGradesBody');
+      if (gradesBody) {
+        const formatCA = (tot) => Math.round(Number(tot) * 0.4);
+        const formatExam = (tot) => Math.round(Number(tot) * 0.6);
+
+        gradesBody.innerHTML = `
+          <tr>
+            <td><strong>English Language & Phonics</strong></td>
+            <td style="text-align: center;">${formatCA(g.english)}</td>
+            <td style="text-align: center;">${formatExam(g.english)}</td>
+            <td style="text-align: center; font-weight: 700;">${g.english}</td>
+            <td style="text-align: center;"><span class="score-grade">${getGradeSymbol(g.english)}</span></td>
+          </tr>
+          <tr>
+            <td><strong>Quantitative Mathematics</strong></td>
+            <td style="text-align: center;">${formatCA(g.math)}</td>
+            <td style="text-align: center;">${formatExam(g.math)}</td>
+            <td style="text-align: center; font-weight: 700;">${g.math}</td>
+            <td style="text-align: center;"><span class="score-grade">${getGradeSymbol(g.math)}</span></td>
+          </tr>
+          <tr>
+            <td><strong>Computer Literacy Basics</strong></td>
+            <td style="text-align: center;">${formatCA(g.computer)}</td>
+            <td style="text-align: center;">${formatExam(g.computer)}</td>
+            <td style="text-align: center; font-weight: 700;">${g.computer}</td>
+            <td style="text-align: center;"><span class="score-grade">${getGradeSymbol(g.computer)}</span></td>
+          </tr>
+          <tr>
+            <td><strong>Civic & Christian Characters</strong></td>
+            <td style="text-align: center;">${formatCA(g.civic)}</td>
+            <td style="text-align: center;">${formatExam(g.civic)}</td>
+            <td style="text-align: center; font-weight: 700;">${g.civic}</td>
+            <td style="text-align: center;"><span class="score-grade">${getGradeSymbol(g.civic)}</span></td>
+          </tr>
+          <tr>
+            <td><strong>Agricultural Sciences</strong></td>
+            <td style="text-align: center;">${formatCA(g.agriculture)}</td>
+            <td style="text-align: center;">${formatExam(g.agriculture)}</td>
+            <td style="text-align: center; font-weight: 700;">${g.agriculture}</td>
+            <td style="text-align: center;"><span class="score-grade">${getGradeSymbol(g.agriculture)}</span></td>
+          </tr>
+        `;
+      }
+
+      // Populate Coach remarks
+      const coachRemarksEl = document.getElementById('coachRemarksText');
+      if (coachRemarksEl) {
+        coachRemarksEl.textContent = `"${studentProfile.coachRemarks || "No custom evaluation comments logged yet by the level instructor. Keep studying diligently!"}"`;
+      }
+
+      // 3. Tab Navigation
       const menuItems = document.querySelectorAll('.portal-menu-item');
       const sections = document.querySelectorAll('.portal-section');
 
@@ -462,24 +567,44 @@
           e.preventDefault();
           const target = item.getAttribute('data-target');
 
-          // Toggle menu highlights
+          // Highlight menu
           menuItems.forEach(mi => mi.classList.remove('active'));
           item.classList.add('active');
 
-          // Toggle section views
+          // Toggle viewport section
           sections.forEach(sec => sec.classList.remove('active'));
           const targetSec = document.getElementById(`portal-${target}`);
           if (targetSec) targetSec.classList.add('active');
+
+          // Close mobile overlays if active
+          const mobileMenu = document.getElementById('mobileMenuOverlay');
+          const mobileToggle = document.getElementById('mobileToggle');
+          if (mobileMenu && mobileMenu.classList.contains('active')) {
+            mobileMenu.classList.remove('active');
+            if (mobileToggle) mobileToggle.classList.remove('open');
+          }
         });
       });
 
-      // Mobile toggling menu
+      // Mobile Menu trigger toggle
       const mobileToggle = document.getElementById('mobileToggle');
       const mobileMenu = document.getElementById('mobileMenuOverlay');
       if (mobileToggle && mobileMenu) {
         mobileToggle.addEventListener('click', () => {
           mobileMenu.classList.toggle('active');
           mobileToggle.classList.toggle('open');
+        });
+      }
+
+      // Logout handler
+      const logoutBtn = document.getElementById('logoutBtn');
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          if (confirm("Are you sure you want to securely log out of your Student Learning Console?")) {
+            logoutStudent();
+            window.location.replace('login.html');
+          }
         });
       }
     });
