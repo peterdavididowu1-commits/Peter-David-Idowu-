@@ -226,7 +226,7 @@
     import { checkAdminsExist, createAdministrator, getActiveAdminSession, injectNotificationBanner } from './assets/js/firebase-core.js';
 
     document.addEventListener('DOMContentLoaded', async () => {
-      // Injects top notifications regarding configuration states (Demo vs Live)
+      // Verify state integration
       injectNotificationBanner();
 
       const errorAlert = document.getElementById('errorAlert');

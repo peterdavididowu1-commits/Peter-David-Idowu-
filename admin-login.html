@@ -315,7 +315,7 @@
           const res = await resetAdministratorPasswordByEmail(email);
           if (res.success) {
             if (res.simulated) {
-              showAlert(successAlert, "Demo Mode: Administrator email verified! Since we are in Offline Demo Mode, your password has been simulated with successful bypass. Please login normally.");
+              showAlert(successAlert, "Administrator email verified! Your password has been simulated with a successful bypass for the local account. Please log in.");
             } else {
               showAlert(successAlert, "Password Reset Sent! Please check your email inbox folder/spam section for reset guidelines from Firebase Security Desk.");
             }

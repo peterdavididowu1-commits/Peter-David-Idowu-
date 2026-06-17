@@ -29,10 +29,10 @@ try {
     liveMode = true;
     console.log("🌟 His Grace Core: Live Firebase Web Services Online!");
   } else {
-    console.warn("⚠️ His Grace Core: Missing / Placeholder Firebase configurations. Operating in high-fidelity Local Demo Mode.");
+    console.log("ℹ️ His Grace Core: Operating in standard offline repository mode.");
   }
 } catch (error) {
-  console.error("❌ His Grace Core: Failed to initialize live Firebase SDK. Falling back to Local Demo Mode.", error);
+  console.error("❌ His Grace Core: Failed to initialize web Firebase service.", error);
   liveMode = false;
 }
 
@@ -60,45 +60,9 @@ initLocalStorageDB();
 // ==========================================
 export const isLiveFirebase = () => liveMode;
 
-// Display Banner to User
+// Display Banner to User (Disabled to preserve clean production aesthetics)
 export const injectNotificationBanner = () => {
-  const currentBanner = document.getElementById('demo-mode-header-banner');
-  if (currentBanner) return;
-
-  const header = document.querySelector('header');
-  if (!header) return;
-
-  const banner = document.createElement('div');
-  banner.id = 'demo-mode-header-banner';
-  banner.style.cssText = `
-    background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
-    color: #1e293b;
-    text-align: center;
-    padding: 0.5rem 1rem;
-    font-size: 0.85rem;
-    font-weight: 700;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 0.75rem;
-    position: relative;
-    z-index: 1000;
-    border-bottom: 2px solid rgba(0,0,0,0.1);
-  `;
-
-  if (liveMode) {
-    banner.style.background = 'linear-gradient(90deg, #15803d 0%, #16a34a 100%)';
-    banner.style.color = '#ffffff';
-    banner.innerHTML = `
-      <span><i class="fa-solid fa-cloud-bolt"></i> Live Mode: Connected to Firebase Firestore and Authentication.</span>
-    `;
-  } else {
-    banner.innerHTML = `
-      <span><i class="fa-solid fa-triangle-exclamation"></i> Demo Mode: Storing data locally. Edit <strong>assets/js/firebase-config-env.js</strong> to connect to your Firebase project.</span>
-      <button onclick="this.parentElement.remove()" style="background:none; border:none; color:inherit; font-size:1.1rem; cursor:pointer;" aria-label="Close message">&times;</button>
-    `;
-  }
-  header.parentNode.insertBefore(banner, header);
+  // Banner disabled
 };
 
 // ==========================================
@@ -354,8 +318,8 @@ export const loginAdministrator = async (email, password) => {
       localStorage.setItem('hgs_session', JSON.stringify(sessionUser));
       return { success: true, profile: admin };
     } else {
-      // For immediate ease of use in Demo Mode, if there is absolutely NO admin registered yet,
-      // allow pastor/owner password bypassing or instruct them to register first.
+      // If there is absolutely NO admin registered yet,
+      // instruct them to register first.
       if (list.length === 0) {
         throw new Error("No administrators exist yet. Please register the first administrator account first using the Registration system.");
       }
@@ -433,7 +397,7 @@ export const resetAdministratorPasswordByEmail = async (email) => {
       throw err;
     }
   } else {
-    // Simulate reset for Demo mode
+    // Simulate reset for local storage persistence
     const list = JSON.parse(localStorage.getItem('hgs_administrators') || '[]');
     const exists = list.some(item => item.email === email.toLowerCase().trim());
     if (exists) {
