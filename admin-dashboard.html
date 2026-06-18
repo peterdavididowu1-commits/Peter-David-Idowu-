@@ -810,6 +810,7 @@
             </div>
 
             <div class="db-footer-actions" style="display: flex; gap: 1rem; justify-content: flex-end; border-top: 1px solid var(--border-color); padding-top: 1.5rem; margin-top: 1.5rem; flex-wrap: wrap;">
+              <button type="button" class="btn btn-outline" id="sendDirectEmailJSTestBtn" style="padding: 0.6rem 1.2rem; background-color: #f0fdf4; border-color: #86efac; color: #166534;"><i class="fa-solid fa-envelope-circle-check"></i> Send Direct EmailJS Test</button>
               <button type="button" class="btn btn-outline" id="testEmailSubmitBtn" style="padding: 0.6rem 1.2rem;"><i class="fa-solid fa-paper-plane"></i> Dispatch Carrier Connection Test</button>
               <button type="submit" class="btn btn-primary" id="saveEmailSettingsBtn" style="padding: 0.6rem 2rem;"><i class="fa-solid fa-floppy-disk"></i> Save Credentials</button>
             </div>
@@ -2060,6 +2061,7 @@ Log in to check term report cards.`;
       const emailAlertDanger = document.getElementById('emailAlertDanger');
       
       const testEmailSubmitBtn = document.getElementById('testEmailSubmitBtn');
+      const sendDirectEmailJSTestBtn = document.getElementById('sendDirectEmailJSTestBtn');
       const saveEmailSettingsBtn = document.getElementById('saveEmailSettingsBtn');
 
       const toggleEmailProviderFields = () => {
@@ -2128,6 +2130,107 @@ Log in to check term report cards.`;
         } finally {
           saveEmailSettingsBtn.disabled = false;
           saveEmailSettingsBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Credentials';
+        }
+      });
+
+      sendDirectEmailJSTestBtn.addEventListener('click', async () => {
+        emailAlertSuccess.style.display = 'none';
+        emailAlertDanger.style.display = 'none';
+
+        const serviceId = emailServiceId.value.trim();
+        const templateId = emailTemplateId.value.trim();
+        const publicKey = emailPublicKey.value.trim();
+
+        if (!serviceId || !templateId || !publicKey) {
+          alert("Please fill in Service ID, Template ID, and Public Key first before sending a Direct Test.");
+          return;
+        }
+
+        const recipient = prompt("Enter a valid recipient email address for Direct EmailJS Test:", "recipient@example.com");
+        if (!recipient || recipient.trim() === "") {
+          return; // cancel
+        }
+
+        try {
+          sendDirectEmailJSTestBtn.disabled = true;
+          sendDirectEmailJSTestBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending Direct Test...';
+
+          const payloadBody = {
+            service_id: serviceId,
+            template_id: templateId,
+            user_id: publicKey,
+            template_params: {
+              subject: "His Grace School Direct EmailJS Test",
+              message: "This is a direct EmailJS delivery test.",
+              recipient_email: recipient.trim(),
+              to_email: recipient.trim(),
+              email: recipient.trim(),
+              guardianEmail: recipient.trim(),
+              student_name: "Direct Test Recipient",
+              admission_number: "DIRECT-TEST-001",
+              username: "direct_test_user",
+              password: "direct_test_password",
+              portal_url: window.location.origin,
+              date_time: new Date().toLocaleString()
+            }
+          };
+
+          console.log("=== EMAILJS DIRECT TEST PRE-SEND ===");
+          console.log(`- Service ID: ${serviceId}`);
+          console.log(`- Template ID: ${templateId}`);
+          console.log(`- Public Key: ${publicKey}`);
+          console.log(`- Recipient Email: ${recipient.trim()}`);
+          console.log("- Full Payload:", JSON.stringify(payloadBody, null, 2));
+          console.log("=====================================");
+
+          const response = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payloadBody)
+          });
+
+          const responseMessage = await response.text();
+
+          console.log("=== EMAILJS DIRECT TEST POST-SEND ===");
+          console.log(`- Response Status: ${response.status}`);
+          console.log(`- Response Message: "${responseMessage}"`);
+          console.log("======================================");
+
+          if (!response.ok) {
+            throw new Error(`EmailJS dispatch failed with HTTP ${response.status}: ${responseMessage}`);
+          }
+
+          emailAlertSuccess.style.display = 'block';
+          emailAlertSuccess.innerHTML = `
+            <div style="font-weight: bold; margin-bottom: 0.5rem;"><i class="fa-solid fa-circle-check"></i> Direct EmailJS Test Complete!</div>
+            <ul style="margin: 0; padding-left: 1.2rem; font-size: 0.85rem; list-style-type: disc;">
+              <li><strong>EmailJS Response Status:</strong> ${response.status}</li>
+              <li><strong>EmailJS Response Message:</strong> "${responseMessage}"</li>
+              <li><strong>Service ID Used:</strong> ${serviceId}</li>
+              <li><strong>Template ID Used:</strong> ${templateId}</li>
+              <li><strong>Recipient Email Used:</strong> ${recipient.trim()}</li>
+            </ul>
+          `;
+
+          alert(`EmailJS Direct Test Succeeded!\nStatus: ${response.status}\nMessage: ${responseMessage}\nRecipient: ${recipient.trim()}`);
+
+        } catch (err) {
+          console.error("Direct EmailJS test failed:", err);
+          emailAlertDanger.style.display = 'block';
+          emailAlertDanger.innerHTML = `
+            <div style="font-weight: bold; margin-bottom: 0.5rem;"><i class="fa-solid fa-circle-exclamation"></i> Direct EmailJS Test Failed!</div>
+            <div style="font-size: 0.85rem; margin-bottom: 0.5rem;">Details: ${err.message}</div>
+            <ul style="margin: 0; padding-left: 1.2rem; font-size: 0.85rem; color: #7f1d1d; list-style-type: disc;">
+              <li><strong>Service ID Attempted:</strong> ${serviceId}</li>
+              <li><strong>Template ID Attempted:</strong> ${templateId}</li>
+              <li><strong>Recipient Email Tried:</strong> ${recipient.trim()}</li>
+            </ul>
+          `;
+        } finally {
+          sendDirectEmailJSTestBtn.disabled = false;
+          sendDirectEmailJSTestBtn.innerHTML = '<i class="fa-solid fa-envelope-circle-check"></i> Send Direct EmailJS Test';
         }
       });
 

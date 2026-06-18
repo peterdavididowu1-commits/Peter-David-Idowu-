@@ -754,20 +754,16 @@ export const approveAdmission = async (admissionId, operatorName = "Registrar") 
   };
 
   // 6. Send live Email alert automatically (SMS is temporarily disabled)
-  try {
-    if (!recipientEmail) {
-      console.warn("[Approval Notification] guardianEmail / recipient email is empty, skipping email dispatch.");
-    } else {
-      await sendEmailNotification(
-        recipientEmail,
-        `Admission Approved: ${targetApplication.studentName} (${uniqueNum})`,
-        notificationContent
-      );
-    }
-    console.log(`[SMS System] Outbound SMS for admission approval of "${targetApplication.studentName}" is skipped (SMS temporarily disabled).`);
-  } catch (notifyErr) {
-    console.error("Non-blocking notification delivery failure during approval workflow:", notifyErr);
+  if (!recipientEmail) {
+    console.warn("[Approval Notification] guardianEmail / recipient email is empty, skipping email dispatch.");
+  } else {
+    await sendEmailNotification(
+      recipientEmail,
+      `Admission Approved: ${targetApplication.studentName} (${uniqueNum})`,
+      notificationContent
+    );
   }
+  console.log(`[SMS System] Outbound SMS for admission approval of "${targetApplication.studentName}" is skipped (SMS temporarily disabled).`);
 
   // 7. Log activity
   await logActivity(
@@ -796,16 +792,12 @@ export const rejectAdmission = async (admissionId, reason, operatorName = "Regis
   await updateAdmission(admissionId, { status: "Rejected", rejectionReason: reason });
 
   // 2. Dispatch rejection notifications via Email & SMS
-  try {
-    await sendRejectionNotification(
-      targetApplication.parentEmail,
-      targetApplication.parentPhone,
-      targetApplication.studentName,
-      reason
-    );
-  } catch (notifyErr) {
-    console.error("Rejection notification delivery failure:", notifyErr);
-  }
+  await sendRejectionNotification(
+    targetApplication.parentEmail,
+    targetApplication.parentPhone,
+    targetApplication.studentName,
+    reason
+  );
 
   // 3. Dispatched notification details logged
   await logActivity(
@@ -1035,7 +1027,9 @@ His Grace Nursery & Primary School
     console.log(`- Template ID: ${config.emailjsTemplateId}`);
     console.log(`- Public Key: ${config.emailjsPublicKey}`);
     console.log(`- Recipient Email: ${recipientEmail}`);
-    console.log("- Full Template Parameters:", JSON.stringify(payloadBody.template_params, null, 2));
+    console.log(`- Sender Email: ${config.fromEmail || "N/A"}`);
+    console.log(`- Subject: ${subject}`);
+    console.log("- Full EmailJS Payload:", JSON.stringify(payloadBody, null, 2));
     console.log("========================================");
 
     const response = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
@@ -1051,6 +1045,9 @@ His Grace Nursery & Primary School
       console.error("=== EMAILJS DIAGNOSTIC DISPATCH ERROR ===");
       console.error(`- HTTP Status: ${response.status}`);
       console.error(`- Error Body: ${errorText}`);
+      console.error(`- Service ID Tried: ${config.emailjsServiceId}`);
+      console.error(`- Template ID Tried: ${config.emailjsTemplateId}`);
+      console.error(`- Recipient Email Tried: ${recipientEmail}`);
       console.error("=========================================");
       throw new Error(`EmailJS check failed: ${errorText} (Status: ${response.status})`);
     }
@@ -1058,7 +1055,10 @@ His Grace Nursery & Primary School
     const resText = await response.text();
     console.log("=== EMAILJS DIAGNOSTIC POST-SEND SUCCESS LOG ===");
     console.log(`- HTTP Status: ${response.status}`);
-    console.log(`- Response: "${resText}"`);
+    console.log(`- Response Message: "${resText}"`);
+    console.log(`- Service ID Used: ${config.emailjsServiceId}`);
+    console.log(`- Template ID Used: ${config.emailjsTemplateId}`);
+    console.log(`- Recipient Email: ${recipientEmail}`);
     console.log("================================================");
 
     await logActivity(
@@ -1133,7 +1133,9 @@ export const sendRejectionNotification = async (recipientEmail, recipientPhone, 
     console.log(`- Template ID: ${config.emailjsTemplateId}`);
     console.log(`- Public Key: ${config.emailjsPublicKey}`);
     console.log(`- Recipient Email: ${recipientEmail}`);
-    console.log("- Full Template Parameters:", JSON.stringify(payloadBody.template_params, null, 2));
+    console.log(`- Sender Email: ${config.fromEmail || "N/A"}`);
+    console.log(`- Subject: ${subject}`);
+    console.log("- Full Payload:", JSON.stringify(payloadBody, null, 2));
     console.log("==================================================");
 
     const response = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
@@ -1147,6 +1149,9 @@ export const sendRejectionNotification = async (recipientEmail, recipientPhone, 
       console.error("=== EMAILJS DIAGNOSTIC REJECTION DISPATCH ERROR ===");
       console.error(`- HTTP Status: ${response.status}`);
       console.error(`- Error Body: ${errorText}`);
+      console.error(`- Service ID Tried: ${config.emailjsServiceId}`);
+      console.error(`- Template ID Tried: ${config.emailjsTemplateId}`);
+      console.error(`- Recipient Email Tried: ${recipientEmail}`);
       console.error("====================================================");
       throw new Error(`EmailJS check failed: ${errorText} (Status: ${response.status})`);
     }
@@ -1154,7 +1159,10 @@ export const sendRejectionNotification = async (recipientEmail, recipientPhone, 
     const resText = await response.text();
     console.log("=== EMAILJS DIAGNOSTIC POST-SEND REJECTION SUCCESS LOG ===");
     console.log(`- HTTP Status: ${response.status}`);
-    console.log(`- Response: "${resText}"`);
+    console.log(`- Response Message: "${resText}"`);
+    console.log(`- Service ID Used: ${config.emailjsServiceId}`);
+    console.log(`- Template ID Used: ${config.emailjsTemplateId}`);
+    console.log(`- Recipient Email: ${recipientEmail}`);
     console.log("==========================================================");
 
     await logActivity(
