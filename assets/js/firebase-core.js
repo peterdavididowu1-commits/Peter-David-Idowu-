@@ -23,6 +23,20 @@ try {
   throw new Error("Critical Firebase initialization failure: " + error.message);
 }
 
+// Timeout helper to prevent infinite loading on invalid Firebase credentials or poor network connection
+const withTimeout = (promise, ms, operationName) => {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => {
+        const err = new Error(`Firebase ${operationName} timed out after ${ms / 1000} seconds. Please verify your internet connection or check if your Firebase config in assets/js/firebase-config-env.js is valid.`);
+        err.name = "TimeoutError";
+        reject(err);
+      }, ms)
+    )
+  ]);
+};
+
 // Display Banner to User (Disabled to preserve clean production aesthetics)
 export const injectNotificationBanner = () => {
   // Banner disabled
@@ -44,17 +58,37 @@ export const saveAdmission = async (admissionData) => {
   const projectId = firebaseConfig ? firebaseConfig.projectId : "Unknown";
   const deviceUsed = navigator.userAgent || "Unknown Device";
   const collectionName = "hgs_admissions";
+  const initialized = db !== null ? "INITIALIZED (SUCCESS)" : "NOT INITIALIZED (FAILED)";
 
   console.log(`=== FIREBASE WRITE INITIATION ===`);
+  console.log(`- Firebase Initialization Status: ${initialized}`);
   console.log(`- Device Used: ${deviceUsed}`);
   console.log(`- Firebase Project ID: ${projectId}`);
   console.log(`- Collection Name: ${collectionName}`);
   console.log(`- Internal Record ID: ${record.id}`);
+  console.log(`- Write Attempt: True`);
   console.log(`=================================`);
+
+  if (!db) {
+    const initErr = new Error("Firestore database is not initialized. Please verify your Firebase settings.");
+    console.error(`=== FIREBASE WRITE FAILURE ===`);
+    console.error(`- Device Used: ${deviceUsed}`);
+    console.error(`- Firebase Project ID: ${projectId}`);
+    console.error(`- Collection Name: ${collectionName}`);
+    console.error(`- Write Result: FAILURE (SDK Uninitialized)`);
+    console.error(`- Error Details: ${initErr.message}`);
+    console.error(`==============================`);
+    throw initErr;
+  }
 
   try {
     const colRef = sdkFirestore.collection(db, collectionName);
-    const docRef = await sdkFirestore.addDoc(colRef, record);
+    // Add an 8-second timeout window to prevent the form from getting stuck forever if the connection stalls
+    const docRef = await withTimeout(
+      sdkFirestore.addDoc(colRef, record),
+      8000,
+      "Admission Document Write"
+    );
     
     console.log(`=== FIREBASE WRITE SUCCESS ===`);
     console.log(`- Device Used: ${deviceUsed}`);
@@ -72,7 +106,7 @@ export const saveAdmission = async (admissionData) => {
     console.error(`- Firebase Project ID: ${projectId}`);
     console.error(`- Collection Name: ${collectionName}`);
     console.error(`- Write Result: FAILURE`);
-    console.error(`- Error Details: ${err.message}`);
+    console.error(`- Error Details: ${err.name} - ${err.message}`);
     console.error(`==============================`);
     throw err;
   }
@@ -80,29 +114,43 @@ export const saveAdmission = async (admissionData) => {
 
 export const getAdmissions = async () => {
   const projectId = firebaseConfig ? firebaseConfig.projectId : "Unknown";
+  const collectionName = "hgs_admissions";
+  const initialized = db !== null ? "INITIALIZED (SUCCESS)" : "NOT INITIALIZED (FAILED)";
+
   console.log(`[Firebase Core] [getAdmissions] Attempting Firestore Read.`, {
+    initialized: initialized,
     projectId: projectId,
-    collection: "hgs_admissions"
+    collection: collectionName
   });
 
+  if (!db) {
+    throw new Error("Firestore database is not initialized.");
+  }
+
   try {
-    const colRef = sdkFirestore.collection(db, "hgs_admissions");
+    const colRef = sdkFirestore.collection(db, collectionName);
     const q = sdkFirestore.query(colRef, sdkFirestore.orderBy("createdAt", "desc"));
-    const snapshot = await sdkFirestore.getDocs(q);
+    // Add a timeout window to ensure lists load or fail fast instead of hanging
+    const snapshot = await withTimeout(
+      sdkFirestore.getDocs(q),
+      8000,
+      "Admissions Query Read"
+    );
+    
     const results = [];
     snapshot.forEach(docSnap => {
       results.push({ ...docSnap.data(), docId: docSnap.id });
     });
     console.log(`[Firebase Core] [getAdmissions] Firestore Read SUCCESS!`, {
       projectId: projectId,
-      collection: "hgs_admissions",
+      collection: collectionName,
       count: results.length
     });
     return results;
   } catch (err) {
     console.error(`[Firebase Core] [getAdmissions] Firestore Read FAILURE!`, {
       projectId: projectId,
-      collection: "hgs_admissions",
+      collection: collectionName,
       error: err.message
     });
     throw err;
@@ -110,26 +158,50 @@ export const getAdmissions = async () => {
 };
 
 export const updateAdmission = async (id, updatedFields) => {
+  if (!db) throw new Error("Firestore database is not initialized.");
   const colRef = sdkFirestore.collection(db, "hgs_admissions");
   const q = sdkFirestore.query(colRef, sdkFirestore.where("id", "==", id));
-  const snapshot = await sdkFirestore.getDocs(q);
+  
+  const snapshot = await withTimeout(
+    sdkFirestore.getDocs(q),
+    8000,
+    "Admission Query for Update"
+  );
+  
   if (!snapshot.empty) {
     const docId = snapshot.docs[0].id;
     const docRef = sdkFirestore.doc(db, "hgs_admissions", docId);
-    await sdkFirestore.updateDoc(docRef, updatedFields);
+    
+    await withTimeout(
+      sdkFirestore.updateDoc(docRef, updatedFields),
+      8000,
+      "Admission Update Write"
+    );
     return { success: true };
   }
   throw new Error("Admission record not found");
 };
 
 export const deleteAdmission = async (id) => {
+  if (!db) throw new Error("Firestore database is not initialized.");
   const colRef = sdkFirestore.collection(db, "hgs_admissions");
   const q = sdkFirestore.query(colRef, sdkFirestore.where("id", "==", id));
-  const snapshot = await sdkFirestore.getDocs(q);
+  
+  const snapshot = await withTimeout(
+    sdkFirestore.getDocs(q),
+    8000,
+    "Admission Query for Deletion"
+  );
+  
   if (!snapshot.empty) {
     const docId = snapshot.docs[0].id;
     const docRef = sdkFirestore.doc(db, "hgs_admissions", docId);
-    await sdkFirestore.deleteDoc(docRef);
+    
+    await withTimeout(
+      sdkFirestore.deleteDoc(docRef),
+      8000,
+      "Admission Delete Write"
+    );
     return { success: true };
   }
   throw new Error("Admission record not found");
