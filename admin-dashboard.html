@@ -1784,7 +1784,8 @@ Log in to check term report cards.`;
                 <span class="badge" style="${statusStyle}">${escapeHTML(item.status)}</span>
               </td>
               <td style="text-align:center;">
-                <div style="display:flex; gap:0.5rem; justify-content:center;">
+                <div style="display:flex; gap:0.5rem; justify-content:center; flex-wrap:wrap; align-items:center;">
+                  <button class="action-badge send-creds-student-btn" data-id="${item.id}" style="background-color:#059669; color:#ffffff; font-weight:700;"><i class="fa-solid fa-envelope"></i> Send Admission Credentials</button>
                   <button class="action-badge badge-edit edit-student-btn" data-id="${item.id}"><i class="fa-solid fa-user-pen"></i> Edit / Scores</button>
                   <button class="action-badge badge-delete delete-student-btn" data-id="${item.id}"><i class="fa-solid fa-trash-can"></i> Delete</button>
                 </div>
@@ -1794,6 +1795,27 @@ Log in to check term report cards.`;
         }).join('');
 
         // Link CTA actions
+        document.querySelectorAll('.send-creds-student-btn').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const id = btn.getAttribute('data-id');
+            const origHTML = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Dispatched...';
+            try {
+              const result = await resendStudentCredentials(id, session.fullName || "Registrar");
+              if (result.success) {
+                showCredentialsNotificationModal(result.notification, "Credentials Active & Dispatched");
+                alert(`Credentials successfully dispatched via EmailJS to ${result.notification.guardianEmail}!`);
+              }
+            } catch (err) {
+              alert("Dispatch error: " + err.message);
+            } finally {
+              btn.disabled = false;
+              btn.innerHTML = origHTML;
+            }
+          });
+        });
+
         document.querySelectorAll('.edit-student-btn').forEach(btn => {
           btn.addEventListener('click', () => {
             const id = btn.getAttribute('data-id');

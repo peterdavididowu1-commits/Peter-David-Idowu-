@@ -828,6 +828,14 @@ export const resendStudentCredentials = async (studentId, operatorName = "Regist
   const emailInfo = getRecipientEmail(student);
   const recipientEmail = emailInfo.email;
 
+  console.log("=== CREDENTIAL DISPATCH DIAGNOSTIC INITIALIZED ===");
+  console.log(`- Selected student ID: ${studentId}`);
+  console.log(`- Resolved recipient guardianEmail: ${recipientEmail} (extracted from field '${emailInfo.fieldName}')`);
+  console.log(`- Student Name: ${student.studentName}`);
+  console.log(`- Admission Number: ${student.admissionNumber}`);
+  console.log(`- Username: ${student.admissionNumber}`);
+  console.log(`- Password: ${student.password}`);
+
   // Prevent sending when guardianEmail is empty
   if (!recipientEmail || recipientEmail.trim() === "") {
     throw new Error("The recipient's email address (guardianEmail) is empty. Unable to resend credentials via email. Please configure an email address first.");
@@ -844,10 +852,10 @@ export const resendStudentCredentials = async (studentId, operatorName = "Regist
     guardianEmail: recipientEmail
   };
 
-  // Resend mail notification only (SMS is temporarily disabled)
+  // Resend mail notification only (SMS is temporarily disabled) using exact working EmailJS template mapper
   const emailResult = await sendEmailNotification(
     recipientEmail,
-    `Access Reminder: ${student.studentName} (${student.admissionNumber})`,
+    `Admission Approved – His Grace School`,
     notificationContent
   );
 
