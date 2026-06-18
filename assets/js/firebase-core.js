@@ -934,6 +934,7 @@ export const fetchGlobalEmailSettings = async () => {
     } catch (e) {
       console.error("Could not sync remote config, using local:", e);
     }
+  }
   return local;
 };
 
