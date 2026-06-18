@@ -37,32 +37,43 @@ export const saveAdmission = async (admissionData) => {
   const record = {
     ...admissionData,
     id: 'ADM-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    submittedFromDevice: navigator.userAgent || "Unknown Device"
   };
 
   const projectId = firebaseConfig ? firebaseConfig.projectId : "Unknown";
-  console.log(`[Firebase Core] [saveAdmission] Attempting Firestore Write.`, {
-    projectId: projectId,
-    collection: "hgs_admissions",
-    recordId: record.id
-  });
+  const deviceUsed = navigator.userAgent || "Unknown Device";
+  const collectionName = "hgs_admissions";
+
+  console.log(`=== FIREBASE WRITE INITIATION ===`);
+  console.log(`- Device Used: ${deviceUsed}`);
+  console.log(`- Firebase Project ID: ${projectId}`);
+  console.log(`- Collection Name: ${collectionName}`);
+  console.log(`- Internal Record ID: ${record.id}`);
+  console.log(`=================================`);
 
   try {
-    const colRef = sdkFirestore.collection(db, "hgs_admissions");
+    const colRef = sdkFirestore.collection(db, collectionName);
     const docRef = await sdkFirestore.addDoc(colRef, record);
-    console.log(`[Firebase Core] [saveAdmission] Firestore Write SUCCESS!`, {
-      projectId: projectId,
-      collection: "hgs_admissions",
-      docId: docRef.id,
-      recordId: record.id
-    });
+    
+    console.log(`=== FIREBASE WRITE SUCCESS ===`);
+    console.log(`- Device Used: ${deviceUsed}`);
+    console.log(`- Firebase Project ID: ${projectId}`);
+    console.log(`- Collection Name: ${collectionName}`);
+    console.log(`- Created Document ID (Firebase ID): ${docRef.id}`);
+    console.log(`- Internal Record ID: ${record.id}`);
+    console.log(`- Write Result: SUCCESS`);
+    console.log(`==============================`);
+
     return { success: true, id: record.id, docId: docRef.id };
   } catch (err) {
-    console.error(`[Firebase Core] [saveAdmission] Firestore Write FAILURE!`, {
-      projectId: projectId,
-      collection: "hgs_admissions",
-      error: err.message
-    });
+    console.error(`=== FIREBASE WRITE FAILURE ===`);
+    console.error(`- Device Used: ${deviceUsed}`);
+    console.error(`- Firebase Project ID: ${projectId}`);
+    console.error(`- Collection Name: ${collectionName}`);
+    console.error(`- Write Result: FAILURE`);
+    console.error(`- Error Details: ${err.message}`);
+    console.error(`==============================`);
     throw err;
   }
 };
