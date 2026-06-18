@@ -712,7 +712,10 @@ export const approveAdmission = async (admissionId, operatorName = "Registrar") 
   // 3. Generate secure temporary password
   const tempPassword = generateTempPassword();
 
-  // 4. Create standard student entity payload
+  const emailInfo = getRecipientEmail(targetApplication);
+  const recipientEmail = emailInfo.email;
+
+  // 4. Create standard student entity payload (saving both parentEmail and guardianEmail to be robust)
   const studentPayload = {
     admissionNumber: uniqueNum,
     studentName: targetApplication.studentName,
@@ -721,7 +724,8 @@ export const approveAdmission = async (admissionId, operatorName = "Registrar") 
     gradeApplying: targetApplication.gradeApplying || "Primary 1",
     parentName: targetApplication.parentName,
     parentPhone: targetApplication.parentPhone,
-    parentEmail: targetApplication.parentEmail || "",
+    parentEmail: recipientEmail,
+    guardianEmail: recipientEmail, 
     homeAddress: targetApplication.homeAddress || "",
     password: tempPassword,
     status: 'Active',
@@ -746,14 +750,16 @@ export const approveAdmission = async (admissionId, operatorName = "Registrar") 
     password: tempPassword,
     portalUrl: portalUrl,
     guardianPhone: targetApplication.parentPhone,
-    guardianEmail: targetApplication.parentEmail
+    guardianEmail: recipientEmail
   };
 
   // 6. Send live Email & SMS alerts automatically
   try {
-    if (targetApplication.parentEmail) {
+    if (!recipientEmail) {
+      console.warn("[Approval Notification] guardianEmail / recipient email is empty, skipping email dispatch.");
+    } else {
       await sendEmailNotification(
-        targetApplication.parentEmail,
+        recipientEmail,
         `Admission Approved: ${targetApplication.studentName} (${uniqueNum})`,
         notificationContent
       );
@@ -768,7 +774,7 @@ export const approveAdmission = async (admissionId, operatorName = "Registrar") 
   // 7. Log activity
   await logActivity(
     "Admission Approved & Student Onboarded",
-    `Approved admission request for pupil "${targetApplication.studentName}" (Target Grade: ${targetApplication.gradeApplying}). Outfitted credentials: Portal UID [${uniqueNum}], Temp Password [${tempPassword}]. Dispatched notifications to guardian ${targetApplication.parentPhone} / ${targetApplication.parentEmail || 'N/A'}.`,
+    `Approved admission request for pupil "${targetApplication.studentName}" (Target Grade: ${targetApplication.gradeApplying}). Outfitted credentials: Portal UID [${uniqueNum}], Temp Password [${tempPassword}]. Dispatched notifications to guardian ${targetApplication.parentPhone} / ${recipientEmail || 'N/A'}.`,
     operatorName
   );
 
@@ -829,6 +835,14 @@ export const resendStudentCredentials = async (studentId, operatorName = "Regist
     throw new Error("Student account matching record not found.");
   }
 
+  const emailInfo = getRecipientEmail(student);
+  const recipientEmail = emailInfo.email;
+
+  // Prevent sending when guardianEmail is empty
+  if (!recipientEmail) {
+    throw new Error("The recipient's email address (guardianEmail) is empty. Unable to resend credentials via email. Please configure an email address first.");
+  }
+
   const portalUrl = window.location.origin + "/login.html";
   const notificationContent = {
     studentName: student.studentName,
@@ -837,24 +851,23 @@ export const resendStudentCredentials = async (studentId, operatorName = "Regist
     password: student.password,
     portalUrl: portalUrl,
     guardianPhone: student.parentPhone,
-    guardianEmail: student.parentEmail
+    guardianEmail: recipientEmail
   };
 
   // Resend notifications on demand
-  if (student.parentEmail) {
-    await sendEmailNotification(
-      student.parentEmail,
-      `Access Reminder: ${student.studentName} (${student.admissionNumber})`,
-      notificationContent
-    );
-  }
+  await sendEmailNotification(
+    recipientEmail,
+    `Access Reminder: ${student.studentName} (${student.admissionNumber})`,
+    notificationContent
+  );
+
   if (student.parentPhone) {
     await sendSMSNotification(student.parentPhone, notificationContent);
   }
 
   await logActivity(
     "Credentials Respatched",
-    `Resubmitted portal entry credentials card for pupil "${student.studentName}" (${student.admissionNumber}). Destination Phone: ${student.parentPhone}, Destination Email: ${student.parentEmail || 'N/A'}.`,
+    `Resubmitted portal entry credentials card for pupil "${student.studentName}" (${student.admissionNumber}). Destination Phone: ${student.parentPhone}, Destination Email: ${recipientEmail || 'N/A'}.`,
     operatorName
   );
 
@@ -921,11 +934,37 @@ export const fetchGlobalEmailSettings = async () => {
     } catch (e) {
       console.error("Could not sync remote config, using local:", e);
     }
-  }
   return local;
 };
 
+export const getRecipientEmail = (obj) => {
+  if (!obj) {
+    console.log("[Email Resolver] Target object is null/undefined.");
+    return { email: "", fieldName: "none" };
+  }
+  let resolved = "";
+  let fieldName = "none";
+  if (obj.guardianEmail) {
+    resolved = obj.guardianEmail;
+    fieldName = "guardianEmail";
+  } else if (obj.parentEmail) {
+    resolved = obj.parentEmail;
+    fieldName = "parentEmail";
+  } else if (obj.email) {
+    resolved = obj.email;
+    fieldName = "email";
+  }
+  console.log(`[Email Resolver] Resolved recipient email value: "${resolved.trim()}" using field "${fieldName}"`);
+  return { email: resolved.trim(), fieldName: fieldName };
+};
+
 export const sendEmailNotification = async (recipientEmail, subject, payload) => {
+  if (!recipientEmail || recipientEmail.trim() === "") {
+    throw new Error("Aborted: Recipient address (guardianEmail) is empty. Dispatch canceled.");
+  }
+
+  console.log(`[Notification Engine] Preparing outbound mail dispatch. Recipient: "${recipientEmail.trim()}"`);
+
   const config = await fetchGlobalEmailSettings();
   const dateStr = new Date().toLocaleDateString();
   const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -960,6 +999,7 @@ His Grace Nursery & Primary School
     }
     
     try {
+      console.log(`[EmailJS Dispatch] Sending request to service ID: ${config.emailjsServiceId}, template ID: ${config.emailjsTemplateId}, with recipient email: "${recipientEmail}" mapped to template variable "email".`);
       const response = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
         method: "POST",
         headers: {
@@ -972,6 +1012,8 @@ His Grace Nursery & Primary School
           template_params: {
             subject: subject,
             recipient_email: recipientEmail,
+            email: recipientEmail, // Map guardianEmail to the variable named 'email'
+            guardianEmail: recipientEmail,
             student_name: payload.studentName,
             admission_number: payload.admissionNumber,
             username: payload.username,
@@ -989,11 +1031,14 @@ His Grace Nursery & Primary School
         throw new Error(`EmailJS check failed: ${errorText} (Status: ${response.status})`);
       }
 
+      const resText = await response.text();
+      console.log(`[EmailJS Dispatch Verification] Response: "${resText}" (Status: ${response.status})`);
+
       await logActivity(
         "Email Dispatched (EmailJS)",
         `Successfully transferred admission notification email to EmailJS relay for "${payload.studentName}" (${recipientEmail}).`
       );
-      return { success: true, provider: "EmailJS", details: "Delivered via active EmailJS API." };
+      return { success: true, provider: "EmailJS", details: `Delivered via active EmailJS API. Response: ${resText}` };
     } catch (err) {
       console.error("EmailJS dispatch failed:", err);
       await logActivity(
@@ -1107,6 +1152,8 @@ export const sendRejectionNotification = async (recipientEmail, recipientPhone, 
             template_params: {
               subject: subject,
               recipient_email: recipientEmail,
+              email: recipientEmail, // Map guardianEmail to the variable named 'email'
+              guardianEmail: recipientEmail, 
               student_name: studentName,
               admission_number: "REJECTED",
               username: "N/A",

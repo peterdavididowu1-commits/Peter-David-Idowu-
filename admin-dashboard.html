@@ -1869,7 +1869,7 @@ Log in to check term report cards.`;
 
           document.getElementById('student_parentName').value = s.parentName || '';
           document.getElementById('student_parentPhone').value = s.parentPhone || '';
-          document.getElementById('student_parentEmail').value = s.parentEmail || '';
+          document.getElementById('student_parentEmail').value = s.parentEmail || s.guardianEmail || '';
           document.getElementById('student_homeAddress').value = s.homeAddress || '';
 
           const g = s.grades || { english: 85, math: 85, computer: 85, civic: 85, agriculture: 85 };
@@ -1893,7 +1893,7 @@ Log in to check term report cards.`;
 
           document.getElementById('student_parentName').value = prefillData.parentName;
           document.getElementById('student_parentPhone').value = prefillData.parentPhone;
-          document.getElementById('student_parentEmail').value = prefillData.parentEmail;
+          document.getElementById('student_parentEmail').value = prefillData.parentEmail || prefillData.guardianEmail || '';
           document.getElementById('student_homeAddress').value = prefillData.homeAddress;
 
           document.getElementById('score_english').value = prefillData.grades.english;
@@ -1949,6 +1949,7 @@ Log in to check term report cards.`;
             parentName: document.getElementById('student_parentName').value.trim(),
             parentPhone: document.getElementById('student_parentPhone').value.trim(),
             parentEmail: document.getElementById('student_parentEmail').value.trim(),
+            guardianEmail: document.getElementById('student_parentEmail').value.trim(),
             homeAddress: document.getElementById('student_homeAddress').value.trim(),
             grades: {
               english: Number(document.getElementById('score_english').value),
