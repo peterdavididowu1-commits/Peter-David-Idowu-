@@ -126,10 +126,15 @@ document.addEventListener('DOMContentLoaded', () => {
           status: 'Pending'
         };
 
+        const alertSuccess = document.getElementById('successAlert');
+        const alertError = document.getElementById('errorAlert');
+
+        if (alertSuccess) alertSuccess.style.display = 'none';
+        if (alertError) alertError.style.display = 'none';
+
         const result = await saveAdmission(record);
 
         if (result.success) {
-          const alertSuccess = document.getElementById('successAlert');
           if (alertSuccess) {
             alertSuccess.style.cssText = 'display: block; background-color: #dcfce7; color: #14532d; border: 1px solid #bbf7d0; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;';
             alertSuccess.innerHTML = `
@@ -141,7 +146,19 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         }
       } catch (err) {
-        alert("Enrolment registry encountered an error: " + err.message);
+        console.error("Admission submission error:", err);
+        const alertError = document.getElementById('errorAlert');
+        if (alertError) {
+          alertError.style.cssText = 'display: block; background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;';
+          alertError.innerHTML = `
+            <strong>Submission Unsuccessful:</strong> The enrollment registry was unable to write your data directly to Firebase.<br>
+            <span style="font-family: monospace; font-size: 0.9em; display: inline-block; margin-top: 0.5rem; background: #fff5f5; padding: 0.5rem; border-radius: 4px; border: 1px solid #fda4af;">
+              ${err.name}: ${err.message}
+            </span><br>
+            <small style="display:inline-block; margin-top:0.5rem;">Please check your device's network connection, or verify with the administrator that the Firestore security permissions allow document creation.</small>
+          `;
+          window.scrollTo({ top: alertError.offsetTop - 120, behavior: 'smooth' });
+        }
       } finally {
         submitBtn.disabled = false;
         submitBtn.innerHTML = origText;
@@ -165,6 +182,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const contactSubject = document.getElementById('contactSubject').value;
         const contactMessage = document.getElementById('contactMessage').value.trim();
 
+        const alertSuccess = document.getElementById('successAlert');
+        const alertError = document.getElementById('errorAlert');
+
+        if (alertSuccess) alertSuccess.style.display = 'none';
+        if (alertError) alertError.style.display = 'none';
+
         const { saveContactMessage } = await import('./firebase-core.js');
 
         const record = {
@@ -178,7 +201,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const result = await saveContactMessage(record);
 
         if (result.success) {
-          const alertSuccess = document.getElementById('successAlert');
           if (alertSuccess) {
             alertSuccess.style.cssText = 'display: block; background-color: #dcfce7; color: #14532d; border: 1px solid #bbf7d0; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;';
             alertSuccess.innerHTML = `
@@ -190,7 +212,18 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         }
       } catch (err) {
-        alert("Delivering message encountered an error: " + err.message);
+        console.error("Contact form delivery error:", err);
+        const alertError = document.getElementById('errorAlert');
+        if (alertError) {
+          alertError.style.cssText = 'display: block; background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;';
+          alertError.innerHTML = `
+            <strong>Delivery Unsuccessful:</strong> Unable to process and register your contact inquiry to the database.<br>
+            <span style="font-family: monospace; font-size: 0.9em; display: inline-block; margin-top: 0.5rem; background: #fff5f5; padding: 0.5rem; border-radius: 4px; border: 1px solid #fda4af;">
+              ${err.name}: ${err.message}
+            </span>
+          `;
+          window.scrollTo({ top: alertError.offsetTop - 120, behavior: 'smooth' });
+        }
       } finally {
         submitBtn.disabled = false;
         submitBtn.innerHTML = origText;
@@ -209,10 +242,28 @@ document.addEventListener('DOMContentLoaded', () => {
       const portalPassword = document.getElementById('portalPassword').value;
 
       if (role === 'Teacher') {
-        alert("Welcome Instructor! Redirecting you to the secure Administrative Center login portal...");
-        window.location.href = 'admin-login.html';
+        const customPrompt = document.createElement('div');
+        customPrompt.style.cssText = 'position:fixed; top:20px; right:20px; background:#1e3a8a; color:#fff; padding:1.25rem; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.15); z-index:9999; font-size:0.95rem; font-family:sans-serif; max-width:350px; border-left:5px solid var(--accent);';
+        customPrompt.innerHTML = `
+          <div style="font-weight:bold; margin-bottom:0.5rem;"><i class="fa-solid fa-chalkboard-user"></i> Instructor Portal</div>
+          <span>Redirecting to the secure Administrative Center login dashboard...</span>
+        `;
+        document.body.appendChild(customPrompt);
+        setTimeout(() => {
+          window.location.href = 'admin-login.html';
+        }, 1200);
         return;
       }
+
+      // Find local student-login errors if any
+      let loginErrorContainer = document.getElementById('loginErrorContainer');
+      if (!loginErrorContainer) {
+        loginErrorContainer = document.createElement('div');
+        loginErrorContainer.id = 'loginErrorContainer';
+        loginErrorContainer.style.cssText = 'display:none; background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.85rem;';
+        loginForm.insertBefore(loginErrorContainer, loginForm.firstChild);
+      }
+      loginErrorContainer.style.display = 'none';
 
       try {
         submitBtn.disabled = true;
@@ -225,7 +276,11 @@ document.addEventListener('DOMContentLoaded', () => {
           window.location.href = 'student-portal.html';
         }
       } catch (err) {
-        alert("Authentication error: " + err.message);
+        console.error("Student login failed:", err);
+        loginErrorContainer.style.display = 'block';
+        loginErrorContainer.innerHTML = `
+          <strong>Authentication Error:</strong> ${err.message || 'Verification rejected.'}
+        `;
       } finally {
         submitBtn.disabled = false;
         submitBtn.innerHTML = origText;
