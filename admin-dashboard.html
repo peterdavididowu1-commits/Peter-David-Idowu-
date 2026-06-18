@@ -749,6 +749,72 @@
             </div>
           </div>
         </div>
+
+        <!-- Official Automated Email Dispatcher Settings Form -->
+        <div class="card" style="background-color: #ffffff; padding: 2.5rem; margin-top: 1.5rem; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
+          <h3 style="color: var(--primary); font-size: 1.35rem; font-weight: 800; border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fa-solid fa-envelope-open-text"></i> Official Automated Notification Courier Service
+          </h3>
+          <p style="color: var(--text-dark); margin-bottom: 1rem; font-size: 0.95rem;">
+            Configure and connect your professional email dispatcher. Approved applicants will automatically receive credentials, links, and admission codes. Unconfigured systems will safely route to <strong>Virtual Delivery Mode</strong> inside the local logs.
+          </p>
+
+          <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; font-size: 0.85rem; line-height: 1.5; color: var(--text-muted);">
+            <strong>Recommended:</strong> Set provider to <strong>EmailJS</strong> for direct, zero-dependency browser delivery. Enter your service keys and configure target templates mapping values: <code>student_name</code>, <code>admission_number</code>, <code>username</code>, <code>password</code>, <code>portal_url</code>.
+          </div>
+
+          <form id="emailSettingsForm">
+            <div id="emailAlertSuccess" class="alert alert-success" style="display: none; padding: 0.75rem; font-size: 0.85rem; margin-bottom: 1.25rem;"></div>
+            <div id="emailAlertDanger" class="alert alert-danger" style="display: none; padding: 0.75rem; font-size: 0.85rem; margin-bottom: 1.25rem;"></div>
+
+            <div class="grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+              <div class="form-group">
+                <label for="emailProvider">Delivery Provider *</label>
+                <select id="emailProvider" class="form-control" style="width: 100%; height: 44px;" required>
+                  <option value="Simulated">☁️ Virtual Registry Simulator (Local Telemetry Logging)</option>
+                  <option value="EmailJS">✉️ EmailJS Client SDK (Direct Browser Delivery)</option>
+                  <option value="Resend">🚀 Resend REST Service (Authorized API Key)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="emailFromField">Authenticated Sender Name / Address *</label>
+                <input type="email" id="emailFromField" class="form-control" placeholder="admissions@hisgracehighschool.org">
+              </div>
+            </div>
+
+            <!-- EmailJS Keys Group -->
+            <div id="emailJSGroup" style="display: none; border-left: 3px solid var(--primary); padding-left: 1rem; margin-bottom: 1.5rem;">
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+                <div class="form-group">
+                  <label for="emailServiceId">Service ID *</label>
+                  <input type="text" id="emailServiceId" class="form-control" placeholder="service_xxxxxx">
+                </div>
+                <div class="form-group">
+                  <label for="emailTemplateId">Template ID *</label>
+                  <input type="text" id="emailTemplateId" class="form-control" placeholder="template_xxxxxx">
+                </div>
+                <div class="form-group">
+                  <label for="emailPublicKey">Public Key *</label>
+                  <input type="text" id="emailPublicKey" class="form-control" placeholder="user_xxxxxxxxxxxxxx">
+                </div>
+              </div>
+            </div>
+
+            <!-- Resend Keys Group -->
+            <div id="resendGroup" style="display: none; border-left: 3px solid var(--secondary); padding-left: 1rem; margin-bottom: 1.5rem;">
+              <div class="form-group">
+                <label for="resendApiKey">Resend API Token Key *</label>
+                <input type="password" id="resendApiKey" class="form-control" placeholder="re_xxxxxxxxxxxxxxxxxxxxxxxx">
+              </div>
+            </div>
+
+            <div class="db-footer-actions" style="display: flex; gap: 1rem; justify-content: flex-end; border-top: 1px solid var(--border-color); padding-top: 1.5rem; margin-top: 1.5rem; flex-wrap: wrap;">
+              <button type="button" class="btn btn-outline" id="testEmailSubmitBtn" style="padding: 0.6rem 1.2rem;"><i class="fa-solid fa-paper-plane"></i> Dispatch Carrier Connection Test</button>
+              <button type="submit" class="btn btn-primary" id="saveEmailSettingsBtn" style="padding: 0.6rem 2rem;"><i class="fa-solid fa-floppy-disk"></i> Save Credentials</button>
+            </div>
+          </form>
+        </div>
       </section>
 
     </main>
@@ -1039,7 +1105,10 @@
       rejectAdmission,
       resendStudentCredentials,
       getActivityLogs,
-      logActivity
+      logActivity,
+      getEmailSettings,
+      saveEmailSettings,
+      sendEmailNotification
     } from './assets/js/firebase-core.js';
 
     document.addEventListener('DOMContentLoaded', async () => {
@@ -1967,6 +2036,137 @@ Log in to check term report cards.`;
         } finally {
           changePasswordSubmitBtn.disabled = false;
           changePasswordSubmitBtn.innerHTML = '<i class="fa-solid fa-key"></i> Commit New Password';
+        }
+      });
+
+      // ==========================================
+      // AUTOMATED EMAIL COURIER SETTINGS CONTROLLER
+      // ==========================================
+      const emailSettingsForm = document.getElementById('emailSettingsForm');
+      const emailProvider = document.getElementById('emailProvider');
+      const emailFromField = document.getElementById('emailFromField');
+      
+      const emailJSGroup = document.getElementById('emailJSGroup');
+      const emailServiceId = document.getElementById('emailServiceId');
+      const emailTemplateId = document.getElementById('emailTemplateId');
+      const emailPublicKey = document.getElementById('emailPublicKey');
+      
+      const resendGroup = document.getElementById('resendGroup');
+      const resendApiKey = document.getElementById('resendApiKey');
+      
+      const emailAlertSuccess = document.getElementById('emailAlertSuccess');
+      const emailAlertDanger = document.getElementById('emailAlertDanger');
+      
+      const testEmailSubmitBtn = document.getElementById('testEmailSubmitBtn');
+      const saveEmailSettingsBtn = document.getElementById('saveEmailSettingsBtn');
+
+      const toggleEmailProviderFields = () => {
+        const val = emailProvider.value;
+        if (val === 'EmailJS') {
+          emailJSGroup.style.display = 'block';
+          resendGroup.style.display = 'none';
+        } else if (val === 'Resend') {
+          emailJSGroup.style.display = 'none';
+          resendGroup.style.display = 'block';
+        } else {
+          emailJSGroup.style.display = 'none';
+          resendGroup.style.display = 'none';
+        }
+      };
+
+      emailProvider.addEventListener('change', toggleEmailProviderFields);
+
+      // Load initial config
+      const initEmailSettingsForm = async () => {
+        try {
+          const config = getEmailSettings();
+          emailProvider.value = config.provider || "Simulated";
+          emailFromField.value = config.fromEmail || "admissions@hisgracehighschool.org";
+          
+          emailServiceId.value = config.emailjsServiceId || "";
+          emailTemplateId.value = config.emailjsTemplateId || "";
+          emailPublicKey.value = config.emailjsPublicKey || "";
+          
+          resendApiKey.value = config.apiKey || "";
+          
+          toggleEmailProviderFields();
+        } catch (err) {
+          console.error("Failed loading initial email fields:", err);
+        }
+      };
+
+      initEmailSettingsForm();
+
+      emailSettingsForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        emailAlertSuccess.style.display = 'none';
+        emailAlertDanger.style.display = 'none';
+
+        const updatedSettings = {
+          provider: emailProvider.value,
+          fromEmail: emailFromField.value.trim(),
+          emailjsServiceId: emailServiceId.value.trim(),
+          emailjsTemplateId: emailTemplateId.value.trim(),
+          emailjsPublicKey: emailPublicKey.value.trim(),
+          apiKey: resendApiKey.value.trim()
+        };
+
+        try {
+          saveEmailSettingsBtn.disabled = true;
+          saveEmailSettingsBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving configs...';
+          
+          await saveEmailSettings(updatedSettings);
+          
+          emailAlertSuccess.style.display = 'block';
+          emailAlertSuccess.textContent = `Automated courier configurations saved successfully! Active dispatch provider: "${updatedSettings.provider}".`;
+          initEmailSettingsForm();
+        } catch (err) {
+          emailAlertDanger.style.display = 'block';
+          emailAlertDanger.textContent = `Configuration Error: ${err.message}`;
+        } finally {
+          saveEmailSettingsBtn.disabled = false;
+          saveEmailSettingsBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Credentials';
+        }
+      });
+
+      testEmailSubmitBtn.addEventListener('click', async () => {
+        emailAlertSuccess.style.display = 'none';
+        emailAlertDanger.style.display = 'none';
+
+        const recipient = prompt("Enter a valid recipient email address to send a direct notification test:", "recipient@example.com");
+        if (!recipient || recipient.trim() === "") {
+          return; // cancel
+        }
+
+        const dateStr = new Date().toLocaleDateString();
+        const testPayload = {
+          studentName: "Daniel Test Pupil",
+          admissionNumber: "HGS-2026-TEST",
+          username: "HGS-2026-TEST",
+          password: "TempPass998",
+          portalUrl: window.location.origin + "/login.html",
+          guardianPhone: "08137606078",
+          guardianEmail: recipient.trim()
+        };
+
+        try {
+          testEmailSubmitBtn.disabled = true;
+          testEmailSubmitBtn.innerHTML = '<i class="fa-solid fa-plane-departure fa-spin"></i> Dispatching test...';
+          
+          const result = await sendEmailNotification(
+            recipient.trim(),
+            `Test Connection: His Grace High School Credentials Service (${dateStr})`,
+            testPayload
+          );
+
+          emailAlertSuccess.style.display = 'block';
+          emailAlertSuccess.innerHTML = `<i class="fa-solid fa-circle-check"></i> <strong>Test dispatch complete!</strong><br>Provider: <strong>${result.provider}</strong><br>Status: ${result.details || "Dispatched successfully."}<br><small>Check system logs and your receiver folder.</small>`;
+        } catch (err) {
+          emailAlertDanger.style.display = 'block';
+          emailAlertDanger.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> <strong>Test connection failed!</strong><br>Details: ${err.message}<br><small>Verify key combinations and domain sender settings.</small>`;
+        } finally {
+          testEmailSubmitBtn.disabled = false;
+          testEmailSubmitBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Dispatch Carrier Connection Test';
         }
       });
 
