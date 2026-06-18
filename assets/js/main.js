@@ -149,13 +149,18 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error("Admission submission error:", err);
         const alertError = document.getElementById('errorAlert');
         if (alertError) {
-          alertError.style.cssText = 'display: block; background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;';
+          const errorCode = err.code || "unknown-error-code";
+          const errorMessage = err.message || "An unexpected error occurred.";
+          alertError.style.cssText = 'display: block; background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; padding: 1.25rem; border-radius: 8px; margin-bottom: 1.5rem;';
           alertError.innerHTML = `
-            <strong>Submission Unsuccessful:</strong> The enrollment registry was unable to write your data directly to Firebase.<br>
-            <span style="font-family: monospace; font-size: 0.9em; display: inline-block; margin-top: 0.5rem; background: #fff5f5; padding: 0.5rem; border-radius: 4px; border: 1px solid #fda4af;">
-              ${err.name}: ${err.message}
-            </span><br>
-            <small style="display:inline-block; margin-top:0.5rem;">Please check your device's network connection, or verify with the administrator that the Firestore security permissions allow document creation.</small>
+            <div style="font-weight: 800; margin-bottom: 0.5rem;"><i class="fa-solid fa-triangle-exclamation"></i> Firestore Write Failure Details:</div>
+            <div style="font-family: monospace; font-size: 0.95rem; background: #fff; border: 1px solid #fda4af; padding: 0.75rem; border-radius: 6px; margin: 0.5rem 0; word-break: break-word;">
+              <strong>Error Code:</strong> <span style="color: #dc2626;" id="firestore_error_code">${errorCode}</span><br>
+              <strong>Error Message:</strong> <span id="firestore_error_message">${errorMessage}</span>
+            </div>
+            <div style="font-size: 0.85rem; margin-top: 0.5rem;">
+              <em>This real Firebase error confirms that Firestore rejected the direct write to the <code style="background:rgba(0,0,0,0.05); padding:2px 4px; border-radius:3px;">hgs_admissions</code> collection. If the error is <code>permission-denied</code> or <code>missing-or-insufficient-permissions</code>, unauthenticated public submissions are currently locked by live Database Rules. Please apply the recommended Firestore Rules in your Firebase console.</em>
+            </div>
           `;
           window.scrollTo({ top: alertError.offsetTop - 120, behavior: 'smooth' });
         }
@@ -215,12 +220,18 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error("Contact form delivery error:", err);
         const alertError = document.getElementById('errorAlert');
         if (alertError) {
-          alertError.style.cssText = 'display: block; background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;';
+          const errorCode = err.code || "unknown-error-code";
+          const errorMessage = err.message || "An unexpected error occurred.";
+          alertError.style.cssText = 'display: block; background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; padding: 1.25rem; border-radius: 8px; margin-bottom: 1.5rem;';
           alertError.innerHTML = `
-            <strong>Delivery Unsuccessful:</strong> Unable to process and register your contact inquiry to the database.<br>
-            <span style="font-family: monospace; font-size: 0.9em; display: inline-block; margin-top: 0.5rem; background: #fff5f5; padding: 0.5rem; border-radius: 4px; border: 1px solid #fda4af;">
-              ${err.name}: ${err.message}
-            </span>
+            <div style="font-weight: 800; margin-bottom: 0.5rem;"><i class="fa-solid fa-triangle-exclamation"></i> Firestore Write Failure Details:</div>
+            <div style="font-family: monospace; font-size: 0.95rem; background: #fff; border: 1px solid #fda4af; padding: 0.75rem; border-radius: 6px; margin: 0.5rem 0; word-break: break-word;">
+              <strong>Error Code:</strong> <span style="color: #dc2626;">${errorCode}</span><br>
+              <strong>Error Message:</strong> ${errorMessage}
+            </div>
+            <div style="font-size: 0.85rem; margin-top: 0.5rem;">
+              <em>This real Firebase error confirms that Firestore rejected the direct write to the <code style="background:rgba(0,0,0,0.05); padding:2px 4px; border-radius:3px;">hgs_messages</code> collection. If the error is <code>permission-denied</code> or <code>missing-or-insufficient-permissions</code>, unauthenticated public submissions are currently locked by live Database Rules. Please apply the recommended Firestore Rules in your Firebase console.</em>
+            </div>
           `;
           window.scrollTo({ top: alertError.offsetTop - 120, behavior: 'smooth' });
         }
