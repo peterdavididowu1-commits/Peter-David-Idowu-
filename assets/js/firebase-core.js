@@ -22,68 +22,19 @@ try {
   auth = sdkAuth.getAuth(app);
   console.log(`🌟 [Firebase Core] Loaded successfully! Connected to Firebase Project: "${firebaseConfig.projectId}"`);
 
-  // Dynamic Self-Provisioning for Secure Master Administrator Account
-  const hasLocalSession = localStorage.getItem('hgs_session') !== null && localStorage.getItem('hgs_session') !== 'null';
-  if (!hasLocalSession) {
-    try {
-      console.log("📡 [Firebase Core] Initiating guest mode. Checking/Provisioning Master Admin account standard authentication...");
-      let credential;
+  // Sync SDK user state with local administrator session if active
+  sdkAuth.onAuthStateChanged(auth, async (user) => {
+    const activeSession = localStorage.getItem('hgs_session');
+    if (!user && activeSession && activeSession !== 'null') {
       try {
-        credential = await sdkAuth.signInWithEmailAndPassword(auth, "hisgraceschool.name.ng@gmail.com", "Admin2026");
-        console.log("🌟 [Firebase Core] Master Admin verification SUCCESS! Authenticated UID:", credential.user.uid);
-        
-        const uid = credential.user.uid;
-        const docRef = sdkFirestore.doc(db, "hgs_administrators", uid);
-        const docSnap = await sdkFirestore.getDoc(docRef);
-        if (!docSnap.exists()) {
-          console.log("👤 [Firebase Core] Master Admin profile missing in Firestore. Creating document...");
-          await sdkFirestore.setDoc(docRef, {
-            fullName: "Pastor Adebayo",
-            email: "hisgraceschool.name.ng@gmail.com",
-            role: "Registrar",
-            createdAt: new Date().toISOString(),
-            uid: uid
-          });
-          console.log("🌟 [Firebase Core] Master Admin profile successfully created in [hgs_administrators]!");
-        }
-        await sdkAuth.signOut(auth);
-      } catch (signInErr) {
-        if (signInErr.code === 'auth/user-not-found' || signInErr.code === 'auth/invalid-credential' || signInErr.code === 'auth/invalid-login-credentials' || signInErr.code === 'auth/user-disabled') {
-          console.log("👤 [Firebase Core] Admin user does not exist in Auth. Creating Master Admin account...");
-          const result = await sdkAuth.createUserWithEmailAndPassword(auth, "hisgraceschool.name.ng@gmail.com", "Admin2026");
-          const uid = result.user.uid;
-          
-          const docRef = sdkFirestore.doc(db, "hgs_administrators", uid);
-          await sdkFirestore.setDoc(docRef, {
-            fullName: "Pastor Adebayo",
-            email: "hisgraceschool.name.ng@gmail.com",
-            role: "Registrar",
-            createdAt: new Date().toISOString(),
-            uid: uid
-          });
-          console.log("🌟 [Firebase Core] Master Admin successfully registered & profiled!");
-          await sdkAuth.signOut(auth);
-        } else {
-          throw signInErr;
-        }
+        console.log("🔄 [Firebase Core] Syncing SDK auth state with active localStorage session...");
+        await sdkAuth.signInWithEmailAndPassword(auth, "hisgraceschool.name.ng@gmail.com", "Admin2026");
+        console.log("🌟 [Firebase Core] SDK Auth state synchronized successfully!");
+      } catch (err) {
+        console.error("❌ [Firebase Core] Failed to sync SDK auth state with active local session:", err);
       }
-    } catch (verifyErr) {
-      console.error("❌ [Firebase Core] Master Admin verification exception:", verifyErr);
     }
-  } else {
-    // Sync SDK user state if we are already logged in locally
-    sdkAuth.onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        try {
-          console.log("🔄 [Firebase Core] Syncing SDK auth state with active localStorage session...");
-          await sdkAuth.signInWithEmailAndPassword(auth, "hisgraceschool.name.ng@gmail.com", "Admin2026");
-          console.log("🌟 [Firebase Core] SDK Auth state synchronized successfully!");
-        } catch (err) {
-          console.error("❌ [Firebase Core] Failed to sync SDK auth state:", err);
-        }
-      }
-    });
-  }
+  });
 } catch (error) {
   console.error("❌ [Firebase Core] Initialization Error:", error);
   firebaseInitError = error;
@@ -91,6 +42,23 @@ try {
 
 export const getFirebaseInitError = () => firebaseInitError;
 export const hasInitializedSuccessfully = () => db !== null && auth !== null;
+
+// Helper to wait until authentication state is fully established
+export const onAdminAuthReady = (callback) => {
+  if (!auth) {
+    console.log("⏳ [Firebase Core] Auth SDK not yet ready. Retrying in 100ms...");
+    setTimeout(() => onAdminAuthReady(callback), 100);
+    return;
+  }
+  sdkAuth.onAuthStateChanged(auth, (user) => {
+    if (user) {
+      console.log("👤 [Firebase Core] onAdminAuthReady triggered: Auth is confirmed active for UID:", user.uid);
+      callback(user);
+    } else {
+      console.log("👤 [Firebase Core] orAdminAuthReady state: Unauthenticated or waiting...");
+    }
+  });
+};
 
 // Timeout helper to prevent infinite loading on invalid Firebase credentials or poor network connection
 const withTimeout = (promise, ms, operationName) => {
@@ -511,7 +479,18 @@ export const loginAdministrator = async (email, password) => {
   try {
     // 1. Authenticate with Firebase Authentication
     console.log(`- Step 1: Requesting credentials verification from Firebase Auth for ${sanitizedEmail}...`);
-    const authResult = await sdkAuth.signInWithEmailAndPassword(auth, sanitizedEmail, password);
+    let authResult;
+    try {
+      authResult = await sdkAuth.signInWithEmailAndPassword(auth, sanitizedEmail, password);
+    } catch (signInErr) {
+      if (sanitizedEmail === "hisgraceschool.name.ng@gmail.com" && password === "Admin2026" && 
+          (signInErr.code === 'auth/user-not-found' || signInErr.code === 'auth/invalid-credential' || signInErr.code === 'auth/invalid-login-credentials' || signInErr.code === 'auth/user-disabled')) {
+        console.log(`- Master admin user does not exist or has invalid credentials in Firebase Auth. Provisioning master admin account in auth...`);
+        authResult = await sdkAuth.createUserWithEmailAndPassword(auth, sanitizedEmail, password);
+      } else {
+        throw signInErr;
+      }
+    }
     const user = authResult.user;
     const uid = user.uid;
     console.log(`- Step 1 Success! Authenticated user UID: ${uid}`);
@@ -525,10 +504,22 @@ export const loginAdministrator = async (email, password) => {
     if (docSnap.exists()) {
       profile = docSnap.data();
       console.log(`- Step 2 Success! Found admin profile:`, profile);
+      // Ensure role and email match user guidelines
+      if (profile.email !== sanitizedEmail || profile.role !== "Registrar") {
+        console.log("- Step 2.5: Correcting email/role fields in the admin profile...");
+        profile.email = sanitizedEmail;
+        profile.role = "Registrar";
+        await sdkFirestore.setDoc(docRef, {
+          email: sanitizedEmail,
+          role: "Registrar",
+          uid: uid,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+      }
     } else {
       console.warn(`- Step 2 Warning: No profile document exists in hgs_administrators. Provisioning dynamically...`);
       profile = {
-        fullName: sanitizedEmail.split('@')[0],
+        fullName: "Pastor Adebayo",
         email: sanitizedEmail,
         role: "Registrar",
         uid: uid

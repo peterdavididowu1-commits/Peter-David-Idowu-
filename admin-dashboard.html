@@ -1112,7 +1112,8 @@
       sendEmailNotification,
       getFirebaseInitError,
       subscribeToAdmissions,
-      subscribeToContactMessages
+      subscribeToContactMessages,
+      onAdminAuthReady
     } from './assets/js/firebase-core.js';
 
     document.addEventListener('DOMContentLoaded', async () => {
@@ -1264,6 +1265,9 @@
               </div>
             `).join('');
           }
+          
+          // Keep active admissions list table updated dynamically
+          filterAndRenderAdmissions();
         } catch (err) {
           console.error("❌ [Admin Dashboard] updateStatsAndTables failure:", err);
         }
@@ -2301,36 +2305,53 @@ Log in to check term report cards.`;
       }
 
       // Start Real-time synchronization
-      console.log("📡 [Admin Dashboard] Starting real-time Firestore database listener synchronization...");
+      console.log("📡 [Admin Dashboard] Awaiting secure administrator authentication state...");
 
-      // Listen for Admissions in Real-time
-      const unsubscribeAdmissions = subscribeToAdmissions((admissions) => {
-        console.log(`📈 [Admin Dashboard] [Admissions Observer] Real-time list updated. Count: ${admissions.length} records retrieved from hgs_admissions.`);
-        globalAdmissionsList = admissions;
-        
-        // Re-execute calculations and stats updates dynamically
-        updateStatsAndTables();
-      }, (err) => {
-        console.error("☠️ [Admin Dashboard] Real-time Admissions subscription failed:", err);
+      let listenersStarted = false;
+      onAdminAuthReady((user) => {
+        if (listenersStarted) return;
+        listenersStarted = true;
+
+        console.log(`📡 [Admin Dashboard] Secure connection confirmed! Starting real-time Firestore synchronization for Admin: ${user.email} (UID: ${user.uid})`);
+
+        // Set the live Firebase connection status in UI
         const liveTag = document.getElementById('liveTag');
         if (liveTag) {
           liveTag.className = 'badge';
-          liveTag.style.backgroundColor = '#fee2e2';
-          liveTag.style.color = '#dc2626';
-          liveTag.style.border = '1px solid #fca5a5';
-          liveTag.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> Query Error: ${err.message}`;
+          liveTag.style.backgroundColor = '#dcfce7';
+          liveTag.style.color = 'var(--secondary)';
+          liveTag.innerHTML = '<i class="fa-solid fa-cloud-bolt"></i> Live Firebase Connected';
         }
-      });
 
-      // Listen for Messages in Real-time
-      const unsubscribeMessages = subscribeToContactMessages((messages) => {
-        console.log(`✉️ [Admin Dashboard] [Messages Observer] Real-time inbox updated. Count: ${messages.length} messages loaded from hgs_messages.`);
-        globalMessagesList = messages;
-        
-        // Re-execute calculations and stats updates dynamically
-        updateStatsAndTables();
-      }, (err) => {
-        console.error("☠️ [Admin Dashboard] Real-time Messages subscription failed:", err);
+        // Listen for Admissions in Real-time
+        const unsubscribeAdmissions = subscribeToAdmissions((admissions) => {
+          console.log(`📈 [Admin Dashboard] [Admissions Observer] Real-time list updated. Count: ${admissions.length} records retrieved from hgs_admissions.`);
+          globalAdmissionsList = admissions;
+          
+          // Re-execute calculations and stats updates dynamically
+          updateStatsAndTables();
+        }, (err) => {
+          console.error("☠️ [Admin Dashboard] Real-time Admissions subscription failed:", err);
+          const liveTag = document.getElementById('liveTag');
+          if (liveTag) {
+            liveTag.className = 'badge';
+            liveTag.style.backgroundColor = '#fee2e2';
+            liveTag.style.color = '#dc2626';
+            liveTag.style.border = '1px solid #fca5a5';
+            liveTag.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> Query Error: ${err.message}`;
+          }
+        });
+
+        // Listen for Messages in Real-time
+        const unsubscribeMessages = subscribeToContactMessages((messages) => {
+          console.log(`✉️ [Admin Dashboard] [Messages Observer] Real-time inbox updated. Count: ${messages.length} messages loaded from hgs_messages.`);
+          globalMessagesList = messages;
+          
+          // Re-execute calculations and stats updates dynamically
+          updateStatsAndTables();
+        }, (err) => {
+          console.error("☠️ [Admin Dashboard] Real-time Messages subscription failed:", err);
+        });
       });
     });
   </script>
