@@ -197,7 +197,15 @@ export const getDashboardStats = async () => {
     const admissionsCol = sdkFirestore.collection(db, "hgs_admissions");
     const admSnap = await sdkFirestore.getDocs(admissionsCol);
     const admissions = [];
-    admSnap.forEach(d => admissions.push({ id: d.id, ...d.data() }));
+    admSnap.forEach(d => {
+      const rawData = d.data();
+      admissions.push({
+        ...rawData,
+        docId: d.id,
+        uid: d.id,
+        id: d.id
+      });
+    });
 
     // 2. Fetch Messages
     const messagesCol = sdkFirestore.collection(db, "hgs_messages");
@@ -242,8 +250,65 @@ export const getAdmissions = async () => {
   const colRef = sdkFirestore.collection(db, "hgs_admissions");
   const snap = await sdkFirestore.getDocs(colRef);
   const data = [];
-  snap.forEach(d => data.push({ id: d.id, ...d.data() }));
+  snap.forEach(d => {
+    const rawData = d.data();
+    data.push({
+      ...rawData,
+      docId: d.id,
+      uid: d.id,
+      id: d.id
+    });
+  });
   return data.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+};
+
+// Internal resolve helper to find admission document robustly
+const getAdmissionDoc = async (db, sdkFirestore, admissionId) => {
+  console.log(`[getAdmissionDoc] Resolving admission ID:`, admissionId);
+  const path = "hgs_admissions";
+
+  // Try 1: Try as direct Firestore Document ID
+  const docRef = sdkFirestore.doc(db, path, admissionId);
+  try {
+    const snap = await sdkFirestore.getDoc(docRef);
+    if (snap.exists()) {
+      console.log(`[getAdmissionDoc] Resolved successfully via direct Firestore Document ID.`);
+      return { docRef, snap, admission: snap.data(), id: snap.id };
+    }
+  } catch (e) {
+    console.warn(`[getAdmissionDoc] Direct Document ID lookup failed/errored:`, e.message);
+  }
+
+  // Try 2: Query collection for custom "id" property inside the document
+  const colRef = sdkFirestore.collection(db, path);
+  try {
+    const q1 = sdkFirestore.query(colRef, sdkFirestore.where("id", "==", admissionId));
+    const qSnap1 = await sdkFirestore.getDocs(q1);
+    if (!qSnap1.empty) {
+      const d = qSnap1.docs[0];
+      const resolvedDocRef = sdkFirestore.doc(db, path, d.id);
+      console.log(`[getAdmissionDoc] Resolved successfully by matching "id" field inside document payload.`);
+      return { docRef: resolvedDocRef, snap: d, admission: d.data(), id: d.id };
+    }
+  } catch (e) {
+    console.warn(`[getAdmissionDoc] Custom 'id' match query failed/errored:`, e.message);
+  }
+
+  // Try 3: Query collection for custom "uid" property inside the document
+  try {
+    const q2 = sdkFirestore.query(colRef, sdkFirestore.where("uid", "==", admissionId));
+    const qSnap2 = await sdkFirestore.getDocs(q2);
+    if (!qSnap2.empty) {
+      const d = qSnap2.docs[0];
+      const resolvedDocRef = sdkFirestore.doc(db, path, d.id);
+      console.log(`[getAdmissionDoc] Resolved successfully by matching "uid" field inside document payload.`);
+      return { docRef: resolvedDocRef, snap: d, admission: d.data(), id: d.id };
+    }
+  } catch (e) {
+    console.warn(`[getAdmissionDoc] Custom 'uid' match query failed/errored:`, e.message);
+  }
+
+  return null;
 };
 
 // Approve Admission Function
@@ -251,18 +316,47 @@ export const approveAdmission = async (admissionId, applicantEmail) => {
   try {
     const { db, sdkFirestore } = await getSDK();
     
-    // 1. Fetch exact admission document
-    const docRef = sdkFirestore.doc(db, "hgs_admissions", admissionId);
-    const snap = await sdkFirestore.getDoc(docRef);
-    if (!snap.exists()) {
-      throw new Error("Admission record not found.");
+    let admission = null;
+    let resolvedDocId = "";
+    let docRef = null;
+
+    console.log(`[approveAdmission] Initializing Approve Admission Workflow.`);
+    console.log(`- Requested Parameter:`, admissionId);
+
+    if (typeof admissionId === "object" && admissionId !== null) {
+      // 6 & 7: Use the loaded admission object directly (do not re-query Firestore)
+      admission = admissionId;
+      resolvedDocId = admission.docId || admission.uid || admission.id;
+      docRef = sdkFirestore.doc(db, "hgs_admissions", resolvedDocId);
+      
+      console.log(`[approveAdmission] OPTIMIZATION: Passed loaded admission memory object directly. Firestore re-query bypassed.`);
+    } else {
+      // Standard resolution
+      const docInfo = await getAdmissionDoc(db, sdkFirestore, admissionId);
+      if (!docInfo) {
+        const errorDetail = `[approveAdmission] Admission Record Not Found in Collection path 'hgs_admissions'. Requested Document ID: '${admissionId}'`;
+        console.error(errorDetail);
+        throw new Error(errorDetail);
+      }
+      admission = docInfo.admission;
+      resolvedDocId = docInfo.id;
+      docRef = docInfo.docRef;
     }
-    const admission = snap.data();
 
-    // 2. Update admission status
+    // 2. Log: Firestore document ID, admission.id, admission.uid, and document path being queried
+    console.log(`[approveAdmission] Execution Chain Details:`);
+    console.log(`- Firestore document ID:`, resolvedDocId);
+    console.log(`- admission.id field:`, admission.id || "N/A");
+    console.log(`- admission.uid field:`, admission.uid || "N/A");
+    console.log(`- document path being queried:`, `hgs_admissions/${resolvedDocId}`);
+
+    // Update Status Workflow
+    console.log(`[approveAdmission] Running Workflow sub-task: updateAdmissionStatus`);
     await sdkFirestore.updateDoc(docRef, { status: "Approved" });
+    console.log(`[approveAdmission] updateAdmissionStatus completed. Status set to 'Approved'.`);
 
-    // 3. Auto-generate Student Number and Record
+    // Onboarding Student Workflow
+    console.log(`[approveAdmission] Running Workflow sub-task: onboardStudent / createStudentRecord`);
     const studentsCol = sdkFirestore.collection(db, "students");
     const studSnap = await sdkFirestore.getDocs(studentsCol);
     const studentsList = [];
@@ -315,7 +409,7 @@ export const approveAdmission = async (admissionId, applicantEmail) => {
     await sdkFirestore.addDoc(studentsCol, studentPayload);
     await writeAuditLog("Student Creation", `Profile generated and added to 'students' database for "${fullName}" (Adm No: ${uniqueNum}).`);
 
-    // 4. Send email notification
+    // Send email notification
     if (resolvedEmail) {
       const subject = `Congratulations! - Admission Approved for ${fullName}`;
       const emailText = `Congratulations. Your admission into His Grace School has been approved.\n\nHere are your access details for the student portal:\n- Link: https://ais-dev-ekckh44s3rnajaoptnewrq-954755939199.europe-west2.run.app/login.html\n- Admission Number: ${uniqueNum}\n- Password: ${tempPassword}\n\nWarm Regards,\nHis Grace School Admission Office`;
@@ -335,12 +429,27 @@ export const approveAdmission = async (admissionId, applicantEmail) => {
 export const rejectAdmission = async (admissionId, reason = "Credentials did not meet entry requirements.") => {
   try {
     const { db, sdkFirestore } = await getSDK();
-    const docRef = sdkFirestore.doc(db, "hgs_admissions", admissionId);
-    const snap = await sdkFirestore.getDoc(docRef);
-    if (!snap.exists()) {
-      throw new Error("Admission record not found.");
+    
+    let admission = null;
+    let resolvedDocId = "";
+    let docRef = null;
+
+    if (typeof admissionId === "object" && admissionId !== null) {
+      admission = admissionId;
+      resolvedDocId = admission.docId || admission.uid || admission.id;
+      docRef = sdkFirestore.doc(db, "hgs_admissions", resolvedDocId);
+    } else {
+      const docInfo = await getAdmissionDoc(db, sdkFirestore, admissionId);
+      if (!docInfo) {
+        const errorDetail = `[rejectAdmission] Admission Record Not Found in Collection path 'hgs_admissions'. Requested Document ID: '${admissionId}'`;
+        console.error(errorDetail);
+        throw new Error(errorDetail);
+      }
+      admission = docInfo.admission;
+      resolvedDocId = docInfo.id;
+      docRef = docInfo.docRef;
     }
-    const admission = snap.data();
+
     const fullName = admission.studentName || admission.fullName || "Pupil";
     const resolvedEmail = (admission.guardianEmail || admission.parentEmail || admission.email || "").trim();
 
@@ -367,12 +476,27 @@ export const rejectAdmission = async (admissionId, reason = "Credentials did not
 export const markAdmissionAsPending = async (admissionId) => {
   try {
     const { db, sdkFirestore } = await getSDK();
-    const docRef = sdkFirestore.doc(db, "hgs_admissions", admissionId);
-    const snap = await sdkFirestore.getDoc(docRef);
-    if (!snap.exists()) {
-      throw new Error("Admission record not found.");
+    
+    let admission = null;
+    let resolvedDocId = "";
+    let docRef = null;
+
+    if (typeof admissionId === "object" && admissionId !== null) {
+      admission = admissionId;
+      resolvedDocId = admission.docId || admission.uid || admission.id;
+      docRef = sdkFirestore.doc(db, "hgs_admissions", resolvedDocId);
+    } else {
+      const docInfo = await getAdmissionDoc(db, sdkFirestore, admissionId);
+      if (!docInfo) {
+        const errorDetail = `[markAdmissionAsPending] Admission Record Not Found in Collection path 'hgs_admissions'. Requested Document ID: '${admissionId}'`;
+        console.error(errorDetail);
+        throw new Error(errorDetail);
+      }
+      admission = docInfo.admission;
+      resolvedDocId = docInfo.id;
+      docRef = docInfo.docRef;
     }
-    const admission = snap.data();
+
     const fullName = admission.studentName || admission.fullName || "Pupil";
 
     await sdkFirestore.updateDoc(docRef, { status: "Pending" });

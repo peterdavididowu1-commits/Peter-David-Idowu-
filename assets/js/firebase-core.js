@@ -325,6 +325,23 @@ export const subscribeToContactMessages = (callback, onError) => {
 
 export const updateAdmission = async (id, updatedFields) => {
   if (!db) throw new Error("Firestore database is not initialized.");
+  
+  // Try treating id as direct Firestore Document ID
+  const directDocRef = sdkFirestore.doc(db, "hgs_admissions", id);
+  try {
+    const directSnap = await sdkFirestore.getDoc(directDocRef);
+    if (directSnap.exists()) {
+      await withTimeout(
+        sdkFirestore.updateDoc(directDocRef, updatedFields),
+        8000,
+        "Admission Update Write Direct"
+      );
+      return { success: true };
+    }
+  } catch (e) {
+    console.warn("Direct update doc lookup failed, trying query:", e);
+  }
+
   const colRef = sdkFirestore.collection(db, "hgs_admissions");
   const q = sdkFirestore.query(colRef, sdkFirestore.where("id", "==", id));
   

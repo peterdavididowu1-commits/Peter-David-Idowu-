@@ -852,7 +852,7 @@
         // Disable action footer
         document.getElementById('modalActionsPlaceholder').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Initializing Registration onboarding workflows...';
 
-        const result = await approveAdmission(id, email);
+        const result = await approveAdmission(activeItem || id, email);
         if (result.success) {
           alert(`Applicant onboarding successfully complete!\nUnique Admission Number: ${result.uniqueNum}\nDetails and credentials cards have been dispatched to ${email || 'their email'}`);
           closeDetailsModal();
@@ -872,7 +872,7 @@
       try {
         document.getElementById('modalActionsPlaceholder').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Registering declination decision...';
         
-        await rejectAdmission(id, reason);
+        await rejectAdmission(activeItem || id, reason);
         alert("The candidate application status was changed to 'Rejected' and notification dispatched.");
         closeDetailsModal();
         await loadAdmissions();
@@ -888,7 +888,7 @@
 
       try {
         document.getElementById('modalActionsPlaceholder').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving changes...';
-        await markAdmissionAsPending(id);
+        await markAdmissionAsPending(activeItem || id);
         alert("Status updated back to Pending.");
         closeDetailsModal();
         await loadAdmissions();
