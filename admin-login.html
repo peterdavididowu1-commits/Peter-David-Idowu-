@@ -309,6 +309,7 @@
             console.log(`[UI Admin Login Success] Redirecting... Welcome, ${res.profile.fullName}`);
             showAlert(successAlert, `Verification Success! Welcoming back, ${res.profile.fullName || "Administrator"}. Loading dashboard...`);
             setTimeout(() => {
+              console.log("[DEBUG] Value of hgs_session immediately before redirect:", localStorage.getItem('hgs_session'));
               window.location.href = 'admin-dashboard.html';
             }, 1000);
           }

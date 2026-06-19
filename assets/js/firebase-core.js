@@ -372,6 +372,10 @@ export const loginAdministrator = async (email, password) => {
         await sdkFirestore.setDoc(docRef, profile);
         adminDocFound = true;
         passwordMatch = true;
+        
+        // Session Creation
+        const sessionObj = { uid, email: sanitizedEmail, fullName: profile.fullName, role: profile.role };
+        localStorage.setItem('hgs_session', JSON.stringify(sessionObj));
         sessionCreated = true;
         redirectResult = "Initiating Redirect to admin-dashboard.html...";
         
