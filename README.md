@@ -66,7 +66,6 @@ This site is composed of standard client-side assets (**HTML5, CSS3, JavaScript*
 ├── index.html              # Home Entrance
 ├── about.html              # His Grace Background & School Hours
 ├── admissions.html         # Smart Enrollment Portal & Forms
-├── academics.html          # Classes & Curriculum Layouts
 ├── contact.html            # Help Desk & Message Forms
 ├── login.html              # Student Portal access login
 ├── metadata.json           # Platform configurations
