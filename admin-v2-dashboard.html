@@ -374,6 +374,9 @@
         <li class="db-menu-item">
           <a href="admin-v2-audit.html"><i class="fa-solid fa-clock-rotate-left"></i> Integrity Logs</a>
         </li>
+        <li class="db-menu-item">
+          <a href="admin-v2-settings.html"><i class="fa-solid fa-sliders"></i> Security Setup</a>
+        </li>
       </ul>
       
       <div class="db-sidebar-footer">
@@ -470,7 +473,7 @@
   </div>
 
   <script type="module">
-    import { requireAuthentication, getDashboardStats, logoutAdministrator } from './assets/js/admin-v2.js';
+    import { requireAuthentication, getDashboardStats, getEmailConfig, logoutAdministrator } from './assets/js/admin-v2.js';
 
     // 1. Enforce Authentication Securely
     let currentUser = null;
@@ -480,6 +483,13 @@
       if (!currentUser) return; // redirected
 
       document.getElementById('userEmailPlaceholder').textContent = currentUser.email;
+
+      // Load configuration automatically to prompt active verification logs in console
+      try {
+        await getEmailConfig();
+      } catch (cErr) {
+        console.warn("Could not automatically load active EmailJS credentials:", cErr);
+      }
 
       // 2. Fetch Dashboard Counters
       try {

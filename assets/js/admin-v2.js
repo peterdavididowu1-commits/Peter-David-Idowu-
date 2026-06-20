@@ -2,9 +2,9 @@
 import firebaseConfig from './firebase-config-env.js';
 
 // Centralized EmailJS Constants
-export const EMAILJS_SERVICE_ID = "service_xxxxxxx";
-export const EMAILJS_TEMPLATE_ID = "template_xxxxxxx";
-export const EMAILJS_PUBLIC_KEY = "your_public_key";
+export const EMAILJS_SERVICE_ID = "";
+export const EMAILJS_TEMPLATE_ID = "";
+export const EMAILJS_PUBLIC_KEY = "";
 
 console.log("EmailJS Service:", EMAILJS_SERVICE_ID);
 console.log("EmailJS Template:", EMAILJS_TEMPLATE_ID);
@@ -131,20 +131,58 @@ export const logoutAdministrator = async () => {
 
 // Email Setup configuration loader
 export const getEmailConfig = async () => {
-  try {
-    const { db, sdkFirestore } = await getSDK();
-    const docRef = sdkFirestore.doc(db, "hgs_systems_config", "email_settings");
-    const snap = await sdkFirestore.getDoc(docRef);
-    if (snap.exists()) {
-      return snap.data();
+  // 1. Try reading individual localStorage keys
+  let valService = localStorage.getItem("emailjs_service_id");
+  let valTemplate = localStorage.getItem("emailjs_template_id");
+  let valPublic = localStorage.getItem("emailjs_public_key");
+
+  // 2. Try fallback to hgs_email_settings object
+  if (!valService || !valTemplate || !valPublic) {
+    try {
+      const saved = localStorage.getItem("hgs_email_settings");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (!valService && parsed.emailjsServiceId) valService = parsed.emailjsServiceId;
+        if (!valTemplate && parsed.emailjsTemplateId) valTemplate = parsed.emailjsTemplateId;
+        if (!valPublic && parsed.emailjsPublicKey) valPublic = parsed.emailjsPublicKey;
+      }
+    } catch (e) {
+      console.warn("Parsing hgs_email_settings failed", e);
     }
-  } catch (e) {
-    console.warn("⚠️ [Admin V2] Failed to fetch remote EmailJS configuration, using local/demo parameters.");
   }
+
+  // 3. Try fallback to remote firebase config
+  if (!valService || !valTemplate || !valPublic) {
+    try {
+      const { db, sdkFirestore } = await getSDK();
+      const docRef = sdkFirestore.doc(db, "hgs_systems_config", "email_settings");
+      const snap = await sdkFirestore.getDoc(docRef);
+      if (snap.exists()) {
+        const firestoreData = snap.data();
+        if (!valService && firestoreData.emailjsServiceId) valService = firestoreData.emailjsServiceId;
+        if (!valTemplate && firestoreData.emailjsTemplateId) valTemplate = firestoreData.emailjsTemplateId;
+        if (!valPublic && firestoreData.emailjsPublicKey) valPublic = firestoreData.emailjsPublicKey;
+      }
+    } catch (e) {
+      console.warn("Failed to fetch remote Firestore email_settings:", e.message);
+    }
+  }
+
+  // 4. Fallback to hardcoded constants
+  const serviceId = valService || EMAILJS_SERVICE_ID || "";
+  const templateId = valTemplate || EMAILJS_TEMPLATE_ID || "";
+  const publicKey = valPublic || EMAILJS_PUBLIC_KEY || "";
+
+  // Output current loaded config in console for verification
+  console.log("=== Active EmailJS Engine Configuration ===");
+  console.log("Loaded EmailJS Service ID:", serviceId || "N/A (Not configured)");
+  console.log("Loaded EmailJS Template ID:", templateId || "N/A (Not configured)");
+  console.log("Loaded EmailJS Public Key:", publicKey || "N/A (Not configured)");
+
   return {
-    emailjsServiceId: EMAILJS_SERVICE_ID,
-    emailjsTemplateId: EMAILJS_TEMPLATE_ID,
-    emailjsPublicKey: EMAILJS_PUBLIC_KEY
+    emailjsServiceId: serviceId,
+    emailjsTemplateId: templateId,
+    emailjsPublicKey: publicKey
   };
 };
 
@@ -157,12 +195,18 @@ export const sendEmailNotification = async (recipientEmail, subject, textMessage
     
     const config = await getEmailConfig();
     
-    if (!config.emailjsServiceId || !config.emailjsTemplateId || !config.emailjsPublicKey) {
-      const missing = [];
-      if (!config.emailjsServiceId) missing.push("Service ID");
-      if (!config.emailjsTemplateId) missing.push("Template ID");
-      if (!config.emailjsPublicKey) missing.push("Public Key");
-      throw new Error(`EmailJS dispatch aborted: The following required credentials are missing: ${missing.join(", ")}. Please configure them in settings.`);
+    const isConfigInvalid = !config.emailjsServiceId || 
+                             !config.emailjsTemplateId || 
+                             !config.emailjsPublicKey ||
+                             config.emailjsServiceId.trim() === "" ||
+                             config.emailjsTemplateId.trim() === "" ||
+                             config.emailjsPublicKey.trim() === "" ||
+                             config.emailjsServiceId.includes("xxxxxx") ||
+                             config.emailjsTemplateId.includes("xxxxxx") ||
+                             config.emailjsPublicKey.includes("your_public_key");
+
+    if (isConfigInvalid) {
+      throw new Error("EmailJS is not configured. Please enter Service ID, Template ID, and Public Key in Email Configuration.");
     }
 
     const portalUrl = "https://ais-dev-ekckh44s3rnajaoptnewrq-954755939199.europe-west2.run.app/login.html"; // Default or dynamic relative login page
@@ -608,6 +652,44 @@ export const replyByEmail = async (messageId, replyText, recipientEmail, senderS
   }
 };
 
+// Save Email Setup configuration
+export const saveEmailConfig = async (serviceId, templateId, publicKey) => {
+  try {
+    // 1. Save to local storage individual keys
+    localStorage.setItem("emailjs_service_id", serviceId);
+    localStorage.setItem("emailjs_template_id", templateId);
+    localStorage.setItem("emailjs_public_key", publicKey);
+
+    // 2. Save inside hgs_email_settings object to maintain compatibility with legacy dashboard
+    const legacyConfig = {
+      provider: "EmailJS",
+      fromEmail: "admissions@hisgracehighschool.org",
+      emailjsServiceId: serviceId,
+      emailjsTemplateId: templateId,
+      emailjsPublicKey: publicKey,
+      apiKey: ""
+    };
+    localStorage.setItem("hgs_email_settings", JSON.stringify(legacyConfig));
+
+    // 3. Update in firebase database
+    const { db, sdkFirestore } = await getSDK();
+    const docRef = sdkFirestore.doc(db, "hgs_systems_config", "email_settings");
+    await sdkFirestore.setDoc(docRef, {
+      emailjsServiceId: serviceId,
+      emailjsTemplateId: templateId,
+      emailjsPublicKey: publicKey,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+
+    // 4. Log to audit trails
+    await writeAuditLog("Email Configuration Updated V2", `Administrator updated active EmailJS credentials via V2 Security Setup.`);
+    return { success: true };
+  } catch (err) {
+    console.error("❌ [saveEmailConfig] Error saving configuration:", err);
+    throw err;
+  }
+};
+
 // Audit logs fetching
 export const getAuditLogs = async () => {
   const { db, sdkFirestore } = await getSDK();
@@ -636,6 +718,8 @@ window.AdminV2 = {
   deleteMessage,
   replyByEmail,
   sendEmailNotification,
+  getEmailConfig,
+  saveEmailConfig,
   getAuditLogs,
   writeAuditLog
 };
