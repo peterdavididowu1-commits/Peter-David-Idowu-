@@ -1,6 +1,14 @@
 // His Grace School - Administration Portal V2 Backend Service JS Module
 import firebaseConfig from './firebase-config-env.js';
 
+// Centralized EmailJS Constants
+export const EMAILJS_SERVICE_ID = "service_xxxxxxx";
+export const EMAILJS_TEMPLATE_ID = "template_xxxxxxx";
+export const EMAILJS_PUBLIC_KEY = "your_public_key";
+
+console.log("EmailJS Service:", EMAILJS_SERVICE_ID);
+console.log("EmailJS Template:", EMAILJS_TEMPLATE_ID);
+
 let db = null;
 let auth = null;
 let sdkAuth = null;
@@ -134,9 +142,9 @@ export const getEmailConfig = async () => {
     console.warn("⚠️ [Admin V2] Failed to fetch remote EmailJS configuration, using local/demo parameters.");
   }
   return {
-    emailjsServiceId: "service_8q6oxsm",
-    emailjsTemplateId: "template_j89byb9",
-    emailjsPublicKey: "bX46781-HIs7_C981"
+    emailjsServiceId: EMAILJS_SERVICE_ID,
+    emailjsTemplateId: EMAILJS_TEMPLATE_ID,
+    emailjsPublicKey: EMAILJS_PUBLIC_KEY
   };
 };
 
@@ -148,6 +156,15 @@ export const sendEmailNotification = async (recipientEmail, subject, textMessage
     }
     
     const config = await getEmailConfig();
+    
+    if (!config.emailjsServiceId || !config.emailjsTemplateId || !config.emailjsPublicKey) {
+      const missing = [];
+      if (!config.emailjsServiceId) missing.push("Service ID");
+      if (!config.emailjsTemplateId) missing.push("Template ID");
+      if (!config.emailjsPublicKey) missing.push("Public Key");
+      throw new Error(`EmailJS dispatch aborted: The following required credentials are missing: ${missing.join(", ")}. Please configure them in settings.`);
+    }
+
     const portalUrl = "https://ais-dev-ekckh44s3rnajaoptnewrq-954755939199.europe-west2.run.app/login.html"; // Default or dynamic relative login page
     
     const payloadBody = {

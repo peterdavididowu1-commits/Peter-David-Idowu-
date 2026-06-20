@@ -1,6 +1,14 @@
 // Firebase Centralized Core Service Module (Pure Live Firestore Database Integration)
 import firebaseConfig from './firebase-config-env.js';
 
+// Centralized EmailJS Constants
+export const EMAILJS_SERVICE_ID = "service_xxxxxxx";
+export const EMAILJS_TEMPLATE_ID = "template_xxxxxxx";
+export const EMAILJS_PUBLIC_KEY = "your_public_key";
+
+console.log("EmailJS Service:", EMAILJS_SERVICE_ID);
+console.log("EmailJS Template:", EMAILJS_TEMPLATE_ID);
+
 let liveMode = true;
 let db = null;
 let auth = null;
@@ -1047,9 +1055,9 @@ export const getEmailSettings = () => {
   const defaultSettings = {
     provider: "Simulated", // "Simulated" | "EmailJS" | "Resend"
     apiKey: "", // for Resend API
-    emailjsServiceId: "",
-    emailjsTemplateId: "",
-    emailjsPublicKey: "",
+    emailjsServiceId: EMAILJS_SERVICE_ID,
+    emailjsTemplateId: EMAILJS_TEMPLATE_ID,
+    emailjsPublicKey: EMAILJS_PUBLIC_KEY,
     fromEmail: "admissions@hisgracehighschool.org"
   };
   try {
@@ -1168,7 +1176,11 @@ His Grace Nursery & Primary School
   );
 
   if (!config.emailjsServiceId || !config.emailjsTemplateId || !config.emailjsPublicKey) {
-    throw new Error("EmailJS service credentials are not configured in the security settings page. Please enter Service ID, Template ID, and Public Key first.");
+    const missing = [];
+    if (!config.emailjsServiceId) missing.push("Service ID");
+    if (!config.emailjsTemplateId) missing.push("Template ID");
+    if (!config.emailjsPublicKey) missing.push("Public Key");
+    throw new Error(`EmailJS dispatch aborted: The following required config values are missing: ${missing.join(", ")}. Please navigate to settings to provide them.`);
   }
 
   const payloadBody = {
