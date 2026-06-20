@@ -941,6 +941,31 @@ export const getAdmissionForStudent = async (studentSession) => {
   return null;
 };
 
+export const subscribeToAdmissionRecord = (docId, callback, onError) => {
+  if (!db) {
+    const initErr = getFirebaseInitError() || new Error("Firestore database is not initialized.");
+    if (onError) onError(initErr);
+    return () => {};
+  }
+  const docRef = sdkFirestore.doc(db, "hgs_admissions", docId);
+  try {
+    return sdkFirestore.onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        callback({ ...docSnap.data(), docId: docSnap.id });
+      } else {
+        callback(null);
+      }
+    }, (err) => {
+      console.error("[Firebase Core] [subscribeToAdmissionRecord] Error:", err);
+      if (onError) onError(err);
+    });
+  } catch (err) {
+    console.error("[Firebase Core] [subscribeToAdmissionRecord] Setup error:", err);
+    if (onError) onError(err);
+    return () => {};
+  }
+};
+
 // ==========================================
 // ACTIVITY LOGGING, APPROVAL WORKFLOW & REJECTION ENGINES
 // ==========================================

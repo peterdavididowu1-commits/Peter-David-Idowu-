@@ -173,10 +173,10 @@
         
         <h5 style="text-transform: uppercase; font-size: 0.75rem; color: var(--text-muted); font-weight: 800; letter-spacing: 0.05em; padding-left: 0.75rem;">Interactive Panel</h5>
         <ul class="portal-menu">
-          <li class="portal-menu-item active" data-target="feed">
+          <li class="portal-menu-item active" data-target="feed" id="feedBtn">
             <a href="#"><i class="fa-solid fa-bullhorn" style="width: 20px;"></i> School Noticeboard</a>
           </li>
-          <li class="portal-menu-item" data-target="profile">
+          <li class="portal-menu-item" data-target="profile" id="profileBtn">
             <a href="#"><i class="fa-solid fa-id-card" style="width: 20px;"></i> My Profile</a>
           </li>
           <li class="portal-menu-item" data-target="grades">
@@ -246,6 +246,9 @@
                   <p style="font-size: 0.9rem; color: var(--text-dark); margin: 0;">
                     <strong style="color: var(--text-muted);">Class / Grade level:</strong> <span id="profileClass" style="font-weight: 600; padding-left: 0.5rem;">-</span>
                   </p>
+                  <p style="font-size: 0.9rem; color: var(--text-dark); margin: 0;">
+                    <strong style="color: var(--text-muted);">Submission Date:</strong> <span id="profileSubmissionDate" style="font-weight: 600; padding-left: 0.5rem;">-</span>
+                  </p>
                 </div>
               </div>
 
@@ -260,6 +263,9 @@
                   </p>
                   <p style="font-size: 0.9rem; color: var(--text-dark); margin: 0;">
                     <strong style="color: var(--text-muted);">Emergency Email Address:</strong> <span id="profileParentEmail" style="font-weight: 600; padding-left: 0.5rem;">-</span>
+                  </p>
+                  <p style="font-size: 0.9rem; color: var(--text-dark); margin: 0;">
+                    <strong style="color: var(--text-muted);">Home Address:</strong> <span id="profileHomeAddress" style="font-weight: 600; padding-left: 0.5rem;">-</span>
                   </p>
                 </div>
               </div>
@@ -486,7 +492,7 @@
 
   <!-- Script Navigation bindings -->
   <script type="module">
-    import { getActiveStudentSession, logoutStudent, getStudents, getAdmissionForStudent } from './assets/js/firebase-core.js';
+    import { getActiveStudentSession, logoutStudent, getStudents, getAdmissionForStudent, subscribeToAdmissionRecord } from './assets/js/firebase-core.js';
 
     document.addEventListener('DOMContentLoaded', async () => {
       // 1. Session verification & Security Wall
@@ -496,36 +502,167 @@
         return;
       }
 
-      // 2. Fetch official admission record from hgs_admissions
+      // 2. State & Data Variables
       let admissionRecord = null;
+      let studentProfile = null;
+
+      // 3. Centralised Helper to update UI components dynamically
+      function updatePortalUI(record, profile) {
+        if (!record) return;
+
+        // Header & Sidebar parameters
+        const portalNameEl = document.getElementById('studentPortalName');
+        const sideNameEl = document.getElementById('sidebarName');
+        const classBadgeEl = document.getElementById('studentClassBadge');
+        const admNumEl = document.getElementById('studentAdmissionNumber');
+
+        if (portalNameEl) portalNameEl.textContent = record.studentName;
+        if (sideNameEl) sideNameEl.textContent = record.studentName;
+        if (classBadgeEl) classBadgeEl.textContent = record.gradeApplying || 'Primary 1';
+        if (admNumEl) admNumEl.textContent = `Admission ID: ${record.admissionNumber}`;
+
+        // Profile View Details
+        const pFullName = document.getElementById('profileFullName');
+        const pAdmissionNumber = document.getElementById('profileAdmissionNumber');
+        const pAdmissionStatus = document.getElementById('profileAdmissionStatus');
+        const pDetName = document.getElementById('profileDetName');
+        const pGender = document.getElementById('profileGender');
+        const pDOB = document.getElementById('profileDOB');
+        const pClass = document.getElementById('profileClass');
+        const pParentName = document.getElementById('profileParentName');
+        const pParentPhone = document.getElementById('profileParentPhone');
+        const pParentEmail = document.getElementById('profileParentEmail');
+        const pHomeAddress = document.getElementById('profileHomeAddress');
+        const pSubmissionDate = document.getElementById('profileSubmissionDate');
+
+        if (pFullName) pFullName.textContent = record.studentName || 'Student profile unavailable.';
+        if (pAdmissionNumber) pAdmissionNumber.textContent = record.admissionNumber || 'Student profile unavailable.';
+        if (pAdmissionStatus) {
+          pAdmissionStatus.textContent = record.status || 'Active';
+          if (record.status === 'Approved') {
+            pAdmissionStatus.style.cssText = 'background-color: #dcfce7; color: var(--secondary); font-weight: 700; font-size: 0.8rem; padding: 0.25rem 0.75rem; border-radius: 50px;';
+          } else {
+            pAdmissionStatus.style.cssText = 'background-color: #eff6ff; color: var(--primary); font-weight: 700; font-size: 0.8rem; padding: 0.25rem 0.75rem; border-radius: 50px;';
+          }
+        }
+        if (pDetName) pDetName.textContent = record.studentName || 'Student profile unavailable.';
+        if (pGender) pGender.textContent = record.studentGender || 'Student profile unavailable.';
+        if (pDOB) pDOB.textContent = record.studentDob || 'Student profile unavailable.';
+        if (pClass) pClass.textContent = record.gradeApplying || 'Student profile unavailable.';
+        if (pParentName) pParentName.textContent = record.parentName || 'Student profile unavailable.';
+        if (pParentPhone) pParentPhone.textContent = record.parentPhone || 'Student profile unavailable.';
+        if (pParentEmail) pParentEmail.textContent = record.parentEmail || 'Student profile unavailable.';
+        if (pHomeAddress) pHomeAddress.textContent = record.homeAddress || 'Student profile unavailable.';
+        if (pSubmissionDate) pSubmissionDate.textContent = record.createdAt ? new Date(record.createdAt).toLocaleString() : 'Student profile unavailable.';
+
+        // Populate Grades Details
+        if (profile) {
+          const g = profile.grades || { english: 0, math: 0, computer: 0, civic: 0, agriculture: 0 };
+          const avg = ((Number(g.english) + Number(g.math) + Number(g.computer) + Number(g.civic) + Number(g.agriculture)) / 5).toFixed(1);
+          
+          let levelText = "Pass Status";
+          if (avg >= 90) levelText = "Outstanding Merit";
+          else if (avg >= 80) levelText = "Outstanding";
+          else if (avg >= 70) levelText = "Very Good";
+          else if (avg >= 50) levelText = "Active Standing";
+          else levelText = "Requires Support";
+
+          const averageScoreEl = document.getElementById('averageScoreText');
+          if (averageScoreEl) {
+            averageScoreEl.textContent = `${avg}% (${levelText})`;
+          }
+
+          const getGradeSymbol = (score) => {
+            if (score >= 90) return 'A+';
+            if (score >= 80) return 'A';
+            if (score >= 70) return 'B+';
+            if (score >= 60) return 'B';
+            if (score >= 50) return 'C';
+            return 'F';
+          };
+
+          const gradesBody = document.getElementById('studentGradesBody');
+          if (gradesBody) {
+            const formatCA = (tot) => Math.round(Number(tot) * 0.4);
+            const formatExam = (tot) => Math.round(Number(tot) * 0.6);
+
+            gradesBody.innerHTML = `
+              <tr>
+                <td><strong>English Language & Phonics</strong></td>
+                <td style="text-align: center;">${formatCA(g.english)}</td>
+                <td style="text-align: center;">${formatExam(g.english)}</td>
+                <td style="text-align: center; font-weight: 700;">${g.english}</td>
+                <td style="text-align: center;"><span class="score-grade">${getGradeSymbol(g.english)}</span></td>
+              </tr>
+              <tr>
+                <td><strong>Quantitative Mathematics</strong></td>
+                <td style="text-align: center;">${formatCA(g.math)}</td>
+                <td style="text-align: center;">${formatExam(g.math)}</td>
+                <td style="text-align: center; font-weight: 700;">${g.math}</td>
+                <td style="text-align: center;"><span class="score-grade">${getGradeSymbol(g.math)}</span></td>
+              </tr>
+              <tr>
+                <td><strong>Computer Literacy Basics</strong></td>
+                <td style="text-align: center;">${formatCA(g.computer)}</td>
+                <td style="text-align: center;">${formatExam(g.computer)}</td>
+                <td style="text-align: center; font-weight: 700;">${g.computer}</td>
+                <td style="text-align: center;"><span class="score-grade">${getGradeSymbol(g.computer)}</span></td>
+              </tr>
+              <tr>
+                <td><strong>Civic & Christian Characters</strong></td>
+                <td style="text-align: center;">${formatCA(g.civic)}</td>
+                <td style="text-align: center;">${formatExam(g.civic)}</td>
+                <td style="text-align: center; font-weight: 700;">${g.civic}</td>
+                <td style="text-align: center;"><span class="score-grade">${getGradeSymbol(g.civic)}</span></td>
+              </tr>
+              <tr>
+                <td><strong>Agricultural Sciences</strong></td>
+                <td style="text-align: center;">${formatCA(g.agriculture)}</td>
+                <td style="text-align: center;">${formatExam(g.agriculture)}</td>
+                <td style="text-align: center; font-weight: 700;">${g.agriculture}</td>
+                <td style="text-align: center;"><span class="score-grade">${getGradeSymbol(g.agriculture)}</span></td>
+              </tr>
+            `;
+          }
+
+          const coachRemarksEl = document.getElementById('coachRemarksText');
+          if (coachRemarksEl) {
+            coachRemarksEl.textContent = `"${profile.coachRemarks || "No custom evaluation comments logged yet by the level instructor. Keep studying diligently!"}"`;
+          }
+        }
+      }
+
+      function showProfileError() {
+        const portalNameEl = document.getElementById('studentPortalName');
+        const sideNameEl = document.getElementById('sidebarName');
+        const admNumEl = document.getElementById('studentAdmissionNumber');
+        const classBadgeEl = document.getElementById('studentClassBadge');
+
+        if (portalNameEl) portalNameEl.textContent = "Student profile unavailable.";
+        if (sideNameEl) sideNameEl.textContent = "Student profile unavailable.";
+        if (admNumEl) admNumEl.textContent = "Student profile unavailable.";
+        if (classBadgeEl) classBadgeEl.textContent = "Student profile unavailable.";
+
+        const profileFields = ['profileFullName', 'profileAdmissionNumber', 'profileAdmissionStatus', 'profileDetName', 'profileGender', 'profileDOB', 'profileClass', 'profileParentName', 'profileParentPhone', 'profileParentEmail', 'profileHomeAddress', 'profileSubmissionDate'];
+        profileFields.forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = "Student profile unavailable.";
+        });
+      }
+
+      // 4. Initial fetch of official admission record from hgs_admissions
       try {
         admissionRecord = await getAdmissionForStudent(session);
       } catch (err) {
         console.error("Error loading admission record:", err);
       }
 
-      // 3. Strict security check & Empty State Handling
+      // Strict security check & Empty State Handling
       if (!admissionRecord) {
         console.warn("Student record not found in hgs_admissions.");
-        
-        const portalNameEl = document.getElementById('studentPortalName');
-        const sideNameEl = document.getElementById('sidebarName');
-        const admNumEl = document.getElementById('studentAdmissionNumber');
-        const classBadgeEl = document.getElementById('studentClassBadge');
+        showProfileError();
 
-        if (portalNameEl) portalNameEl.textContent = "Unable to load student profile.";
-        if (sideNameEl) sideNameEl.textContent = "Unable to load student profile.";
-        if (admNumEl) admNumEl.textContent = "Unable to load student profile.";
-        if (classBadgeEl) classBadgeEl.textContent = "Unable to load student profile.";
-
-        // Clear profile panel fields as well
-        const profileFields = ['profileFullName', 'profileAdmissionNumber', 'profileAdmissionStatus', 'profileDetName', 'profileGender', 'profileDOB', 'profileClass', 'profileParentName', 'profileParentPhone', 'profileParentEmail'];
-        profileFields.forEach(id => {
-          const el = document.getElementById(id);
-          if (el) el.textContent = "Unable to load student profile.";
-        });
-
-        // Insert a beautiful prominent empty-state card at the top of the feed and profile
+        // Insert empty state card
         const errorHtml = `
           <div class="card" style="background-color: #fef2f2; border: 1.5px solid #fca5a5; padding: 2rem; border-radius: 8px; text-align: center; margin-bottom: 2rem; box-shadow: var(--shadow-sm);">
             <i class="fa-solid fa-triangle-exclamation" style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>
@@ -550,8 +687,7 @@
         }
       }
 
-      // Fetch full student academic / report sheet mapping from hgs_students
-      let studentProfile = null;
+      // 5. Fetch academic Profile / Report sheet
       try {
         const list = await getStudents();
         studentProfile = list.find(item => 
@@ -561,7 +697,7 @@
         console.error("Error loaded academic student records:", err);
       }
 
-      // Graceful fallback defaults if report sheet isn't created yet
+      // Graceful default if report sheet isn't created yet
       if (!studentProfile) {
         studentProfile = {
           grades: { english: 85, math: 88, computer: 80, civic: 92, agriculture: 75 },
@@ -569,149 +705,128 @@
         };
       }
 
-      // 4. Populate Header & Sidebar Layout Parameters
-      const portalNameEl = document.getElementById('studentPortalName');
-      const sideNameEl = document.getElementById('sidebarName');
-      const classBadgeEl = document.getElementById('studentClassBadge');
-      const admNumEl = document.getElementById('studentAdmissionNumber');
+      // Populate interface inicialmente
+      updatePortalUI(admissionRecord, studentProfile);
 
-      if (portalNameEl) portalNameEl.textContent = admissionRecord.studentName;
-      if (sideNameEl) sideNameEl.textContent = admissionRecord.studentName;
-      if (classBadgeEl) classBadgeEl.textContent = admissionRecord.gradeApplying || 'Primary 1';
-      if (admNumEl) admNumEl.textContent = `Admission ID: ${admissionRecord.admissionNumber}`;
-
-      // 5. Populate Student Profile Tab Details in Real-Time
-      const pFullName = document.getElementById('profileFullName');
-      const pAdmissionNumber = document.getElementById('profileAdmissionNumber');
-      const pAdmissionStatus = document.getElementById('profileAdmissionStatus');
-      const pDetName = document.getElementById('profileDetName');
-      const pGender = document.getElementById('profileGender');
-      const pDOB = document.getElementById('profileDOB');
-      const pClass = document.getElementById('profileClass');
-      const pParentName = document.getElementById('profileParentName');
-      const pParentPhone = document.getElementById('profileParentPhone');
-      const pParentEmail = document.getElementById('profileParentEmail');
-
-      if (pFullName) pFullName.textContent = admissionRecord.studentName;
-      if (pAdmissionNumber) pAdmissionNumber.textContent = admissionRecord.admissionNumber;
-      if (pAdmissionStatus) {
-        pAdmissionStatus.textContent = admissionRecord.status || 'Active';
-        if (admissionRecord.status === 'Approved') {
-          pAdmissionStatus.style.cssText = 'background-color: #dcfce7; color: var(--secondary); font-weight: 700; font-size: 0.8rem; padding: 0.25rem 0.75rem; border-radius: 50px;';
-        } else {
-          pAdmissionStatus.style.cssText = 'background-color: #eff6ff; color: var(--primary); font-weight: 700; font-size: 0.8rem; padding: 0.25rem 0.75rem; border-radius: 50px;';
+      // 6. Set up real-time sync with central Firestore record
+      let unsubscribeAdmission = () => {};
+      if (admissionRecord.docId) {
+        try {
+          unsubscribeAdmission = subscribeToAdmissionRecord(admissionRecord.docId, (updatedRecord) => {
+            if (updatedRecord) {
+              console.log("[Noticeboard/Profile Sync] Real-time profile update loaded successfully from Firestore.");
+              admissionRecord = updatedRecord;
+              updatePortalUI(admissionRecord, studentProfile);
+            } else {
+              console.warn("Real-time profile sync: record not found.");
+              showProfileError();
+            }
+          }, (err) => {
+            console.error("Profile sync exception:", err);
+          });
+        } catch (subErr) {
+          console.error("Real-time subscription failed:", subErr);
         }
       }
-      if (pDetName) pDetName.textContent = admissionRecord.studentName;
-      if (pGender) pGender.textContent = admissionRecord.studentGender || 'N/A';
-      if (pDOB) pDOB.textContent = admissionRecord.studentDob || 'N/A';
-      if (pClass) pClass.textContent = admissionRecord.gradeApplying || 'Primary 1';
-      if (pParentName) pParentName.textContent = admissionRecord.parentName || 'N/A';
-      if (pParentPhone) pParentPhone.textContent = admissionRecord.parentPhone || 'N/A';
-      if (pParentEmail) pParentEmail.textContent = admissionRecord.parentEmail || 'N/A';
 
-      // Calculate aggregated averages
-      const g = studentProfile.grades || { english: 0, math: 0, computer: 0, civic: 0, agriculture: 0 };
-      const avg = ((Number(g.english) + Number(g.math) + Number(g.computer) + Number(g.civic) + Number(g.agriculture)) / 5).toFixed(1);
-      
-      let levelText = "Pass Status";
-      if (avg >= 90) levelText = "Outstanding Merit";
-      else if (avg >= 80) levelText = "Outstanding";
-      else if (avg >= 70) levelText = "Very Good";
-      else if (avg >= 50) levelText = "Active Standing";
-      else levelText = "Requires Support";
-
-      const averageScoreEl = document.getElementById('averageScoreText');
-      if (averageScoreEl) {
-        averageScoreEl.textContent = `${avg}% (${levelText})`;
-      }
-
-      const getGradeSymbol = (score) => {
-        if (score >= 90) return 'A+';
-        if (score >= 80) return 'A';
-        if (score >= 70) return 'B+';
-        if (score >= 60) return 'B';
-        if (score >= 50) return 'C';
-        return 'F';
-      };
-
-      // Populate Grades tbody
-      const gradesBody = document.getElementById('studentGradesBody');
-      if (gradesBody) {
-        const formatCA = (tot) => Math.round(Number(tot) * 0.4);
-        const formatExam = (tot) => Math.round(Number(tot) * 0.6);
-
-        gradesBody.innerHTML = `
-          <tr>
-            <td><strong>English Language & Phonics</strong></td>
-            <td style="text-align: center;">${formatCA(g.english)}</td>
-            <td style="text-align: center;">${formatExam(g.english)}</td>
-            <td style="text-align: center; font-weight: 700;">${g.english}</td>
-            <td style="text-align: center;"><span class="score-grade">${getGradeSymbol(g.english)}</span></td>
-          </tr>
-          <tr>
-            <td><strong>Quantitative Mathematics</strong></td>
-            <td style="text-align: center;">${formatCA(g.math)}</td>
-            <td style="text-align: center;">${formatExam(g.math)}</td>
-            <td style="text-align: center; font-weight: 700;">${g.math}</td>
-            <td style="text-align: center;"><span class="score-grade">${getGradeSymbol(g.math)}</span></td>
-          </tr>
-          <tr>
-            <td><strong>Computer Literacy Basics</strong></td>
-            <td style="text-align: center;">${formatCA(g.computer)}</td>
-            <td style="text-align: center;">${formatExam(g.computer)}</td>
-            <td style="text-align: center; font-weight: 700;">${g.computer}</td>
-            <td style="text-align: center;"><span class="score-grade">${getGradeSymbol(g.computer)}</span></td>
-          </tr>
-          <tr>
-            <td><strong>Civic & Christian Characters</strong></td>
-            <td style="text-align: center;">${formatCA(g.civic)}</td>
-            <td style="text-align: center;">${formatExam(g.civic)}</td>
-            <td style="text-align: center; font-weight: 700;">${g.civic}</td>
-            <td style="text-align: center;"><span class="score-grade">${getGradeSymbol(g.civic)}</span></td>
-          </tr>
-          <tr>
-            <td><strong>Agricultural Sciences</strong></td>
-            <td style="text-align: center;">${formatCA(g.agriculture)}</td>
-            <td style="text-align: center;">${formatExam(g.agriculture)}</td>
-            <td style="text-align: center; font-weight: 700;">${g.agriculture}</td>
-            <td style="text-align: center;"><span class="score-grade">${getGradeSymbol(g.agriculture)}</span></td>
-          </tr>
-        `;
-      }
-
-      // Populate Coach remarks
-      const coachRemarksEl = document.getElementById('coachRemarksText');
-      if (coachRemarksEl) {
-        coachRemarksEl.textContent = `"${studentProfile.coachRemarks || "No custom evaluation comments logged yet by the level instructor. Keep studying diligently!"}"`;
-      }
-
-      // 3. Tab Navigation
-      const menuItems = document.querySelectorAll('.portal-menu-item');
-      const sections = document.querySelectorAll('.portal-section');
-
-      menuItems.forEach(item => {
-        item.addEventListener('click', (e) => {
-          e.preventDefault();
-          const target = item.getAttribute('data-target');
-
-          // Highlight menu
-          menuItems.forEach(mi => mi.classList.remove('active'));
-          item.classList.add('active');
-
-          // Toggle viewport section
-          sections.forEach(sec => sec.classList.remove('active'));
-          const targetSec = document.getElementById(`portal-${target}`);
-          if (targetSec) targetSec.classList.add('active');
-
-          // Close mobile overlays if active
-          const mobileMenu = document.getElementById('mobileMenuOverlay');
-          const mobileToggle = document.getElementById('mobileToggle');
-          if (mobileMenu && mobileMenu.classList.contains('active')) {
-            mobileMenu.classList.remove('active');
-            if (mobileToggle) mobileToggle.classList.remove('open');
+      // 7. Click Handlers & Navigation Toggles
+      async function openStudentProfile(e) {
+        if (e) e.preventDefault();
+        
+        try {
+          const freshSession = getActiveStudentSession();
+          if (!freshSession) {
+            window.location.replace('login.html');
+            return;
           }
+
+          // Fetch fresh and latest admission record from database
+          const freshRecord = await getAdmissionForStudent(freshSession);
+          if (freshRecord) {
+            admissionRecord = freshRecord;
+            updatePortalUI(admissionRecord, studentProfile);
+          } else {
+            showProfileError();
+          }
+        } catch (err) {
+          console.error("Error executing openStudentProfile:", err);
+          showProfileError();
+        }
+
+        // Hide noticeboard, show Profile view
+        const sections = document.querySelectorAll('.portal-section');
+        sections.forEach(sec => sec.classList.remove('active'));
+
+        const profileSec = document.getElementById('portal-profile');
+        if (profileSec) profileSec.classList.add('active');
+
+        // Toggle active menu highlight
+        const menuItems = document.querySelectorAll('.portal-menu-item');
+        menuItems.forEach(mi => mi.classList.remove('active'));
+        const profileBtn = document.getElementById('profileBtn');
+        if (profileBtn) profileBtn.classList.add('active');
+
+        closeMobileMenu();
+      }
+
+      function closeMobileMenu() {
+        const mobileMenu = document.getElementById('mobileMenuOverlay');
+        const mobileToggle = document.getElementById('mobileToggle');
+        if (mobileMenu && mobileMenu.classList.contains('active')) {
+          mobileMenu.classList.remove('active');
+          if (mobileToggle) mobileToggle.classList.remove('open');
+        }
+      }
+
+      // Explicit click handler assignment for requirement 1 and 5
+      const profileBtnEl = document.getElementById('profileBtn');
+      if (profileBtnEl) {
+        profileBtnEl.addEventListener('click', openStudentProfile);
+      }
+
+      // Link handle to noticeboard/feed selector specifically
+      const feedBtnEl = document.getElementById('feedBtn');
+      if (feedBtnEl) {
+        feedBtnEl.addEventListener('click', (e) => {
+          e.preventDefault();
+
+          // Navigation Toggles
+          const sections = document.querySelectorAll('.portal-section');
+          sections.forEach(sec => sec.classList.remove('active'));
+
+          const feedSec = document.getElementById('portal-feed');
+          if (feedSec) feedSec.classList.add('active');
+
+          const menuItems = document.querySelectorAll('.portal-menu-item');
+          menuItems.forEach(mi => mi.classList.remove('active'));
+          feedBtnEl.classList.add('active');
+
+          closeMobileMenu();
         });
+      }
+
+      // General tab-navigation handler for remaining items (Grades, Billings, etc.)
+      const menuItems = document.querySelectorAll('.portal-menu-item');
+      menuItems.forEach(item => {
+        // Only apply if it isn't profileBtn or feedBtn to avoid conflicting double-listeners
+        if (item.id !== 'profileBtn' && item.id !== 'feedBtn') {
+          item.addEventListener('click', (e) => {
+            e.preventDefault();
+            const target = item.getAttribute('data-target');
+
+            // Highlight menu
+            menuItems.forEach(mi => mi.classList.remove('active'));
+            item.classList.add('active');
+
+            // Toggle viewport section
+            const sections = document.querySelectorAll('.portal-section');
+            sections.forEach(sec => sec.classList.remove('active'));
+            const targetSec = document.getElementById(`portal-${target}`);
+            if (targetSec) targetSec.classList.add('active');
+
+            closeMobileMenu();
+          });
+        }
       });
 
       // Mobile Menu trigger toggle
@@ -730,6 +845,7 @@
         logoutBtn.addEventListener('click', (e) => {
           e.preventDefault();
           if (confirm("Are you sure you want to securely log out of your Student Learning Console?")) {
+            unsubscribeAdmission();
             logoutStudent();
             window.location.replace('login.html');
           }
