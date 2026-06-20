@@ -198,16 +198,9 @@
         <section id="noticeboardView" class="portal-section active">
           <h3 style="font-size: 1.25rem; color: var(--primary); margin-bottom: 1.25rem; font-weight: 800;"><i class="fa-solid fa-bullhorn" style="color: var(--accent);"></i> Central School Board Announcements</h3>
           
-          <div style="display: flex; flex-direction: column; gap: 1.25rem;">
-            <!-- Announcement 2 -->
-            <div class="card" style="background-color: #ffffff; padding: 1.5rem; border-left: 4px solid var(--secondary);">
-              <div class="d-flex justify-between" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">
-                <strong>Admissions & Registry Office</strong>
-                <span>Saturday, June 13, 2026</span>
-              </div>
-              <h4 style="color: var(--secondary); font-size: 1.05rem; font-weight: 700; margin-bottom: 0.5rem;">Admission Portals for New Term Now Active Online</h4>
-              <p style="font-size: 0.9rem; color: var(--text-dark); line-height: 1.5;">We have officially activated our new online Smart Enrollment application system for admissions. Parents wishing to register active child bookings (including Creche, Montessori Nursery, and Primary Grade divisions) are instructed to direct their friends to click 'Apply Online Now' on the main homepage. No physically written documents are required during initial bookings.</p>
-              <span class="badge" style="font-size: 0.7rem; margin-top: 0.75rem; background-color: #dcfce7; color: var(--secondary); text-transform: capitalize;">General Update</span>
+          <div id="noticesContainer" style="display: flex; flex-direction: column; gap: 1.25rem;">
+            <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+              <i class="fa-solid fa-spinner fa-spin" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block; color: var(--primary);"></i> Loading active school bulletins...
             </div>
           </div>
         </section>
@@ -490,7 +483,7 @@
 
   <!-- Script Navigation bindings -->
   <script type="module">
-    import { getActiveStudentSession, logoutStudent, getStudents, getAdmissionForStudent, subscribeToAdmissionRecord } from './assets/js/firebase-core.js';
+    import { getActiveStudentSession, logoutStudent, getStudents, getAdmissionForStudent, subscribeToAdmissionRecord, getNotices } from './assets/js/firebase-core.js';
 
     document.addEventListener('DOMContentLoaded', async () => {
       // 1. Session verification & Security Wall
@@ -503,6 +496,51 @@
       // 2. State & Data Variables
       let admissionRecord = null;
       let studentProfile = null;
+
+      // Load and render noticeboard bulletins dynamically
+      async function loadNoticeboardBulletins(studentClass) {
+        try {
+          const notices = await getNotices();
+          const container = document.getElementById('noticesContainer');
+          if (!container) return;
+
+          const normalizedClass = (studentClass || '').toLowerCase().trim();
+          const filtered = notices.filter(n => {
+            const target = (n.targetClass || 'ALL').toLowerCase().trim();
+            return target === 'all' || target === 'all classes' || target === normalizedClass;
+          });
+
+          if (filtered.length === 0) {
+            container.innerHTML = `
+              <div class="card" style="background-color: #ffffff; padding: 2rem; text-align: center; color: var(--text-muted); border-radius: 8px; box-shadow: var(--shadow-sm);">
+                <i class="fa-solid fa-folder-open" style="font-size: 2rem; color: #cbd5e1; margin-bottom: 0.5rem; display:block;"></i>
+                No active announcements published for your class division. Check back later!
+              </div>
+            `;
+            return;
+          }
+
+          container.innerHTML = filtered.map(item => {
+            const date = item.createdAt ? new Date(item.createdAt).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'School Board Notice';
+            return `
+              <div class="card" style="background-color: #ffffff; padding: 1.5rem; border-left: 4px solid var(--secondary); box-shadow: var(--shadow-sm); border-radius: 8px; margin-bottom: 1rem;">
+                <div class="d-flex justify-between" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+                  <strong>${escapeHTML(item.author || 'Registry Office')}</strong>
+                  <span>${date}</span>
+                </div>
+                <h4 style="color: var(--secondary); font-size: 1.05rem; font-weight: 700; margin-bottom: 0.5rem;">${escapeHTML(item.title)}</h4>
+                <p style="font-size: 0.9rem; color: var(--text-dark); line-height: 1.5; white-space: pre-wrap;">${escapeHTML(item.content)}</p>
+                <span class="badge" style="font-size: 0.7rem; margin-top: 0.75rem; background-color: #e0f2fe; color: #0369a1; text-transform: capitalize;">${escapeHTML(item.targetClass || 'All Classes')} announcement</span>
+              </div>
+            `;
+          }).join('');
+        } catch (err) {
+          console.error("Noticeboard dynamic loading error:", err);
+          document.getElementById('noticesContainer').innerHTML = `<p style="color: red; text-align: center;">Unable to sync announcements board updates.</p>`;
+        }
+      }
+
+      window.loadNoticeboardBulletins = loadNoticeboardBulletins;
 
       // 3. Centralised Helper to update UI components dynamically
       function updatePortalUI(record, profile) {
@@ -705,6 +743,7 @@
 
       // Populate interface inicialmente
       updatePortalUI(admissionRecord, studentProfile);
+      await loadNoticeboardBulletins(admissionRecord ? (admissionRecord.gradeApplying || admissionRecord.class) : 'Primary 1');
 
       // 6. Set up real-time sync with central Firestore record
       let unsubscribeAdmission = () => {};

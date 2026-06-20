@@ -830,6 +830,71 @@ export const getAuditLogs = async () => {
   return data.sort((a, b) => new Date(b.timestamp || b.createdAt || 0) - new Date(a.timestamp || a.createdAt || 0));
 };
 
+// Academic student promotion system
+export const promoteStudent = async (studentId, newClass) => {
+  try {
+    const { db, sdkFirestore } = await getSDK();
+    
+    // 1. Update in students collection
+    const studentRef = sdkFirestore.doc(db, "students", studentId);
+    await sdkFirestore.updateDoc(studentRef, {
+      class: newClass,
+      updatedAt: new Date().toISOString()
+    });
+
+    // 2. Read and synchronize in other student profile collections
+    const studentSnap = await sdkFirestore.getDoc(studentRef);
+    if (studentSnap.exists()) {
+      const sData = studentSnap.data();
+      const admDocId = sData.admissionDocId || sData.id || sData.userId;
+      if (admDocId) {
+        const hgsAdmRef = sdkFirestore.doc(db, "hgs_admissions", admDocId);
+        await sdkFirestore.updateDoc(hgsAdmRef, {
+          gradeApplying: newClass,
+          class: newClass,
+          updatedAt: new Date().toISOString()
+        });
+      }
+      
+      const hgsStudentsRef = sdkFirestore.doc(db, "hgs_students", studentId);
+      await sdkFirestore.setDoc(hgsStudentsRef, {
+        class: newClass,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+    }
+
+    // 3. Log to audit trails
+    await writeAuditLog("Student Promoted V2", `Student account was academically promoted to class Level: ${newClass}`);
+    return { success: true };
+  } catch (err) {
+    console.error("❌ Error promoting student:", err);
+    throw err;
+  }
+};
+
+// Noticeboard publishing
+export const publishNotice = async (title, content, targetClass) => {
+  try {
+    const { db, sdkFirestore } = await getSDK();
+    const noticeRef = sdkFirestore.doc(sdkFirestore.collection(db, "hgs_notices"));
+    const payload = {
+      title,
+      content,
+      targetClass: targetClass || "ALL",
+      author: "School Registry Office",
+      createdAt: new Date().toISOString()
+    };
+    await sdkFirestore.setDoc(noticeRef, payload);
+    
+    // Log audit trail
+    await writeAuditLog("Announcements Bulletins Board Updated V2", `Operator published class Announcement: "${title}" target: ${targetClass}`);
+    return { success: true, id: noticeRef.id };
+  } catch (err) {
+    console.error("❌ [publishNotice] Error publishing bulletin:", err);
+    throw err;
+  }
+};
+
 // Export to Global window namespace to be readily accessible in simple HTML files
 window.AdminV2 = {
   getSDK,
@@ -851,5 +916,7 @@ window.AdminV2 = {
   getEmailConfig,
   saveEmailConfig,
   getAuditLogs,
-  writeAuditLog
+  writeAuditLog,
+  promoteStudent,
+  publishNotice
 };

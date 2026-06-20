@@ -1515,3 +1515,20 @@ export const sendRejectionNotification = async (recipientEmail, recipientPhone, 
   );
 };
 
+// Fetch bulletins count and details
+export const getNotices = async () => {
+  if (!db) return [];
+  try {
+    const colRef = sdkFirestore.collection(db, "hgs_notices");
+    const snap = await sdkFirestore.getDocs(colRef);
+    const list = [];
+    snap.forEach(doc => {
+      list.push({ id: doc.id, ...doc.data() });
+    });
+    return list.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  } catch (err) {
+    console.error("Error fetching notices:", err);
+    return [];
+  }
+};
+
