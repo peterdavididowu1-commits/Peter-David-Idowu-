@@ -784,14 +784,60 @@ export const loginStudent = async (admissionNumber, password) => {
   // Locate the matching admission record in hgs_admissions
   if (!db) throw new Error("Firestore database is not initialized.");
   const adColRef = sdkFirestore.collection(db, "hgs_admissions");
-  const adQuery = sdkFirestore.query(adColRef, sdkFirestore.where("admissionNumber", "==", student.admissionNumber));
-  const adSnapshot = await sdkFirestore.getDocs(adQuery);
+  let admissionDocId = null;
+  let matchingDoc = null;
 
-  if (adSnapshot.empty) {
-    throw new Error("Student record not found.");
+  // Tier 1: Try exact match on admissionNumber
+  if (student.admissionNumber) {
+    const q1 = sdkFirestore.query(adColRef, sdkFirestore.where("admissionNumber", "==", student.admissionNumber));
+    const snap1 = await sdkFirestore.getDocs(q1);
+    if (!snap1.empty) {
+      matchingDoc = snap1.docs[0];
+    }
   }
 
-  const admissionDocId = adSnapshot.docs[0].id;
+  // Tier 2: Try exact match on username or id reference
+  if (!matchingDoc && student.username) {
+    const q2 = sdkFirestore.query(adColRef, sdkFirestore.where("username", "==", student.username));
+    const snap2 = await sdkFirestore.getDocs(q2);
+    if (!snap2.empty) {
+      matchingDoc = snap2.docs[0];
+    }
+  }
+
+  // Tier 3: Scan all admissions for case-insensitive match on admissionNumber or username
+  if (!matchingDoc) {
+    const allSnap = await sdkFirestore.getDocs(adColRef);
+    const targetAdm = (student.admissionNumber || "").toUpperCase().trim();
+    const targetUser = (student.username || "").toUpperCase().trim();
+    const targetName = (student.studentName || student.fullName || "").toUpperCase().trim();
+
+    for (const d of allSnap.docs) {
+      const data = d.data();
+      const docAdm = (data.admissionNumber || "").toUpperCase().trim();
+      const docUser = (data.username || "").toUpperCase().trim();
+      const docName = (data.studentName || "").toUpperCase().trim();
+
+      if (targetAdm && docAdm === targetAdm) {
+        matchingDoc = d;
+        break;
+      }
+      if (targetUser && docUser === targetUser) {
+        matchingDoc = d;
+        break;
+      }
+      if (targetName && docName === targetName) {
+        matchingDoc = d;
+        break;
+      }
+    }
+  }
+
+  if (!matchingDoc) {
+    throw new Error("Student admission record could not be matched. Please contact support.");
+  }
+
+  admissionDocId = matchingDoc.id;
   localStorage.setItem('hgs_student_admission_doc_id', admissionDocId);
 
   const sessionObj = {
@@ -843,6 +889,55 @@ export const getAdmissionByNumber = async (admissionNumber) => {
   if (!snapshot.empty) {
     return { ...snapshot.docs[0].data(), docId: snapshot.docs[0].id };
   }
+  return null;
+};
+
+export const getAdmissionForStudent = async (studentSession) => {
+  if (!db) throw new Error("Firestore database is not initialized.");
+  const colRef = sdkFirestore.collection(db, "hgs_admissions");
+
+  // 1. Try by document ID
+  const savedDocId = studentSession.admissionDocId || localStorage.getItem('hgs_student_admission_doc_id');
+  if (savedDocId) {
+    const docRef = sdkFirestore.doc(db, "hgs_admissions", savedDocId);
+    const docSnap = await sdkFirestore.getDoc(docRef);
+    if (docSnap.exists()) {
+      return { ...docSnap.data(), docId: docSnap.id };
+    }
+  }
+
+  // 2. Try exact query by admissionNumber
+  if (studentSession.admissionNumber) {
+    const q1 = sdkFirestore.query(colRef, sdkFirestore.where("admissionNumber", "==", studentSession.admissionNumber));
+    const snap1 = await sdkFirestore.getDocs(q1);
+    if (!snap1.empty) {
+      return { ...snap1.docs[0].data(), docId: snap1.docs[0].id };
+    }
+  }
+
+  // 3. Fallback scan matching case-insensitive admissionNumber, username, or name
+  const allSnap = await sdkFirestore.getDocs(colRef);
+  const targetAdm = (studentSession.admissionNumber || "").toUpperCase().trim();
+  const targetUser = (studentSession.username || "").toUpperCase().trim();
+  const targetName = (studentSession.studentName || "").toUpperCase().trim();
+
+  for (const d of allSnap.docs) {
+    const data = d.data();
+    const docAdm = (data.admissionNumber || "").toUpperCase().trim();
+    const docUser = (data.username || "").toUpperCase().trim();
+    const docName = (data.studentName || "").toUpperCase().trim();
+
+    if (targetAdm && docAdm === targetAdm) {
+      return { ...data, docId: d.id };
+    }
+    if (targetUser && docUser === targetUser) {
+      return { ...data, docId: d.id };
+    }
+    if (targetName && docName === targetName) {
+      return { ...data, docId: d.id };
+    }
+  }
+
   return null;
 };
 

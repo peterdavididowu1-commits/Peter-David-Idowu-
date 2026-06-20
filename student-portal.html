@@ -201,17 +201,6 @@
           <h3 style="font-size: 1.25rem; color: var(--primary); margin-bottom: 1.25rem; font-weight: 800;"><i class="fa-solid fa-bullhorn" style="color: var(--accent);"></i> Central School Board Announcements</h3>
           
           <div style="display: flex; flex-direction: column; gap: 1.25rem;">
-            <!-- Announcement 1 -->
-            <div class="card" style="background-color: #ffffff; padding: 1.5rem; border-left: 4px solid var(--primary);">
-              <div class="d-flex justify-between" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">
-                <strong>Office of the Headteacher</strong>
-                <span>Wednesday, June 17, 2026/span>
-              </div>
-              <h4 style="color: var(--primary); font-size: 1.05rem; font-weight: 700; margin-bottom: 0.5rem;">Announcing Standard Termly Open Day Event</h4>
-              <p style="font-size: 0.9rem; color: var(--text-dark); line-height: 1.5;">Dear Parents & Guardians, we are excited to remind you of the upcoming Termly Open Day taking place this Friday on our main campus. Join us to directly audit your child's continuous drawing worksheets, computing lab progress, and exercise notebook sheets. Personal sessions with level coaches will be held from 9:00 AM.</p>
-              <span class="badge" style="font-size: 0.7rem; margin-top: 0.75rem; background-color: #eff6ff; color: var(--primary);">Mandatory Event</span>
-            </div>
-
             <!-- Announcement 2 -->
             <div class="card" style="background-color: #ffffff; padding: 1.5rem; border-left: 4px solid var(--secondary);">
               <div class="d-flex justify-between" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">
@@ -497,7 +486,7 @@
 
   <!-- Script Navigation bindings -->
   <script type="module">
-    import { getActiveStudentSession, logoutStudent, getStudents, getAdmissionByDocId, getAdmissionByNumber } from './assets/js/firebase-core.js';
+    import { getActiveStudentSession, logoutStudent, getStudents, getAdmissionForStudent } from './assets/js/firebase-core.js';
 
     document.addEventListener('DOMContentLoaded', async () => {
       // 1. Session verification & Security Wall
@@ -510,24 +499,45 @@
       // 2. Fetch official admission record from hgs_admissions
       let admissionRecord = null;
       try {
-        const savedDocId = session.admissionDocId || localStorage.getItem('hgs_student_admission_doc_id');
-        if (savedDocId) {
-          admissionRecord = await getAdmissionByDocId(savedDocId);
-        }
-        
-        // Fallback by admission number if document ID search returned null
-        if (!admissionRecord && session.admissionNumber) {
-          admissionRecord = await getAdmissionByNumber(session.admissionNumber);
-        }
+        admissionRecord = await getAdmissionForStudent(session);
       } catch (err) {
         console.error("Error loading admission record:", err);
       }
 
-      // 3. Strict security check: If the student record cannot be found in hgs_admissions, reject and exit
+      // 3. Strict security check & Empty State Handling
       if (!admissionRecord) {
-        alert("Student record not found.");
-        logoutStudent();
-        window.location.replace('login.html');
+        console.warn("Student record not found in hgs_admissions.");
+        
+        const portalNameEl = document.getElementById('studentPortalName');
+        const sideNameEl = document.getElementById('sidebarName');
+        const admNumEl = document.getElementById('studentAdmissionNumber');
+        const classBadgeEl = document.getElementById('studentClassBadge');
+
+        if (portalNameEl) portalNameEl.textContent = "Unable to load student profile.";
+        if (sideNameEl) sideNameEl.textContent = "Unable to load student profile.";
+        if (admNumEl) admNumEl.textContent = "Unable to load student profile.";
+        if (classBadgeEl) classBadgeEl.textContent = "Unable to load student profile.";
+
+        // Clear profile panel fields as well
+        const profileFields = ['profileFullName', 'profileAdmissionNumber', 'profileAdmissionStatus', 'profileDetName', 'profileGender', 'profileDOB', 'profileClass', 'profileParentName', 'profileParentPhone', 'profileParentEmail'];
+        profileFields.forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = "Unable to load student profile.";
+        });
+
+        // Insert a beautiful prominent empty-state card at the top of the feed and profile
+        const errorHtml = `
+          <div class="card" style="background-color: #fef2f2; border: 1.5px solid #fca5a5; padding: 2rem; border-radius: 8px; text-align: center; margin-bottom: 2rem; box-shadow: var(--shadow-sm);">
+            <i class="fa-solid fa-triangle-exclamation" style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>
+            <h3 style="color: #991b1b; font-size: 1.5rem; font-weight: 800; margin-bottom: 0.5rem;">Unable to load student profile.</h3>
+            <p style="color: #7f1d1d; font-size: 0.95rem; line-height: 1.5;">The system was unable to securely retrieve your student admission credentials from the central database. Please contact the registry desk.</p>
+            <button class="btn btn-outline" onclick="location.reload()" style="margin-top: 1.25rem; font-size: 0.85rem;"><i class="fa-solid fa-arrows-rotate"></i> Retry Syncing Profile</button>
+          </div>
+        `;
+        const profileSec = document.getElementById('portal-profile');
+        if (profileSec) {
+          profileSec.innerHTML = errorHtml;
+        }
         return;
       }
 

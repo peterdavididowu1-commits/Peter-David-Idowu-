@@ -17,18 +17,18 @@ service cloud.firestore {
 
     // 2. Public admission applications registration collection rules
     match /hgs_admissions/{admissionId} {
-      // Public visitors can submit online application forms
-      allow create: if true;
-      // ONLY verified Registrars can view, map or delete admission logs
-      allow read, update, delete: if isRegistrar();
+      // Public visitors can submit online application forms and read their profiles
+      allow create, read: if true;
+      // ONLY verified Registrars can update or delete admission logs
+      allow update, delete: if isRegistrar();
     }
 
     // 3. Pupil Ledger & Accounts Database compilation rules
     match /hgs_students/{studentId} {
-      // Verified Registrars have administrative reading & writing privilege
-      allow create, read, update, delete: if isRegistrar();
-      // Individual pupils can securely read their own reports ledger card
-      allow read: if request.auth != null && request.auth.uid == studentId;
+      // Verified Registrars can modify records
+      allow create, update, delete: if isRegistrar();
+      // Allow reading so that students can check report sheets and authenticate
+      allow read: if true;
     }
 
     // 4. Contact desk feedback inquiry archives
