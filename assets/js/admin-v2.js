@@ -217,6 +217,9 @@ export const sendEmailNotification = async (recipientEmail, subject, payload, st
     let linkVal = "https://peterdavididowu1-commits.github.io/His-Grace-School-Agbugburu-/login.html";
     let schoolWebVal = "https://peterdavididowu1-commits.github.io/His-Grace-School-Agbugburu-/";
 
+    let finalBodyText = "";
+    let isCustom = false;
+
     if (payload && typeof payload === "object") {
       studentNameVal = payload.student_name || payload.studentName || studentNameVal;
       admissionNo = payload.admission_number || payload.admissionNumber || "";
@@ -226,6 +229,10 @@ export const sendEmailNotification = async (recipientEmail, subject, payload, st
       if (payload.school_website) {
         schoolWebVal = payload.school_website;
       }
+      if (payload.custom_message) {
+        finalBodyText = payload.custom_message;
+        isCustom = true;
+      }
     } else if (typeof payload === "string") {
       studentNameVal = studentName || "Pupil";
       const matchAdm = payload.match(/Admission Number:\s*([^\n\r]+)/i);
@@ -233,29 +240,37 @@ export const sendEmailNotification = async (recipientEmail, subject, payload, st
       const matchPass = payload.match(/Password:\s*([^\n\r]+)/i) || payload.match(/Secure Entry Password:\s*([^\n\r]+)/i);
       if (matchPass) passVal = matchPass[1].trim();
       userVal = admissionNo;
+      
+      if (!admissionNo) {
+        finalBodyText = payload;
+        isCustom = true;
+        admissionNo = "N/A";
+        userVal = "N/A";
+        passVal = "N/A";
+      }
     }
 
-    // 8. Before sending the email, validate that:
-    // - admission_number exists
-    // - student_username exists
-    // - student_password exists
-    // - portal_link exists
-    // If any value is missing, stop the email process and display an error.
-    if (!admissionNo || admissionNo.trim() === "") {
-      throw new Error("EmailJS dispatch aborted: Required 'admission_number' value is missing or blank.");
-    }
-    if (!userVal || userVal.trim() === "") {
-      throw new Error("EmailJS dispatch aborted: Required 'student_username' value is missing or blank.");
-    }
-    if (!passVal || passVal.trim() === "") {
-      throw new Error("EmailJS dispatch aborted: Required 'student_password' value is missing or blank.");
-    }
-    if (!linkVal || linkVal.trim() === "") {
-      throw new Error("EmailJS dispatch aborted: Required 'portal_link' value is missing or blank.");
-    }
+    if (!isCustom) {
+      // 8. Before sending the email, validate that:
+      // - admission_number exists
+      // - student_username exists
+      // - student_password exists
+      // - portal_link exists
+      // If any value is missing, stop the email process and display an error.
+      if (!admissionNo || admissionNo.trim() === "") {
+        throw new Error("EmailJS dispatch aborted: Required 'admission_number' value is missing or blank.");
+      }
+      if (!userVal || userVal.trim() === "") {
+        throw new Error("EmailJS dispatch aborted: Required 'student_username' value is missing or blank.");
+      }
+      if (!passVal || passVal.trim() === "") {
+        throw new Error("EmailJS dispatch aborted: Required 'student_password' value is missing or blank.");
+      }
+      if (!linkVal || linkVal.trim() === "") {
+        throw new Error("EmailJS dispatch aborted: Required 'portal_link' value is missing or blank.");
+      }
 
-    // Email Body construction matching exactly the requested format (Requirements section 7)
-    const exactBodyText = `Dear ${studentNameVal},
+      finalBodyText = `Dear ${studentNameVal},
 
 Congratulations.
 
@@ -281,6 +296,7 @@ Please keep these credentials safe and use them to access your student portal.
 Regards,
 
 His Grace School Registry`;
+    }
 
     const payloadBody = {
       service_id: config.emailjsServiceId,
@@ -307,7 +323,7 @@ His Grace School Registry`;
         studentName: studentNameVal,
         portal_url: linkVal,
 
-        message: exactBodyText,
+        message: finalBodyText,
         date_time: new Date().toLocaleString()
       }
     };
@@ -346,7 +362,16 @@ His Grace School Registry`;
 // Get Dashboard Data (Total counters, Recent arrays)
 export const getDashboardStats = async () => {
   try {
-    const { db, sdkFirestore } = await getSDK();
+    const { db, sdkFirestore, auth } = await getSDK();
+    
+    // Verify auth.currentUser is not null
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      console.log(`[getDashboardStats] Current user UID: ${currentUser.uid}`);
+      console.log(`[getDashboardStats] Current user Email: ${currentUser.email}`);
+    } else {
+      console.error("❌ [getDashboardStats] Auth checks Failed: Current user is NULL.");
+    }
     
     // 1. Fetch Admissions
     const admissionsCol = sdkFirestore.collection(db, "hgs_admissions");
@@ -401,7 +426,17 @@ export const getDashboardStats = async () => {
 
 // Admissions Module API
 export const getAdmissions = async () => {
-  const { db, sdkFirestore } = await getSDK();
+  const { db, sdkFirestore, auth } = await getSDK();
+  
+  // Verify auth.currentUser is not null
+  const currentUser = auth.currentUser;
+  if (currentUser) {
+    console.log(`[getAdmissions] Current user UID: ${currentUser.uid}`);
+    console.log(`[getAdmissions] Current user Email: ${currentUser.email}`);
+  } else {
+    console.error("❌ [getAdmissions] Auth checks Failed: Current user is NULL.");
+  }
+  
   const colRef = sdkFirestore.collection(db, "hgs_admissions");
   const snap = await sdkFirestore.getDocs(colRef);
   const data = [];
@@ -414,6 +449,7 @@ export const getAdmissions = async () => {
       id: d.id
     });
   });
+  console.log(`Admissions Loaded: ${data.length}`);
   return data.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 };
 

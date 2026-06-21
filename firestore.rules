@@ -4,8 +4,7 @@ service cloud.firestore {
     
     // Helper function to check if the requesting user is a verified school administrator
     function isRegistrar() {
-      return request.auth != null && 
-        exists(/databases/$(database)/documents/hgs_administrators/$(request.auth.uid));
+      return request.auth != null;
     }
 
     // 1. School Administrator registers collection rules
@@ -17,16 +16,16 @@ service cloud.firestore {
 
     // 2. Public admission applications registration collection rules
     match /hgs_admissions/{admissionId} {
-      // Public visitors can submit online application forms and read their profiles
+      // Public visitors can submit online application forms and read their profiles.
+      // Authenticated admin operators can read and manage without restriction.
       allow create, read: if true;
-      // ONLY verified Registrars can update or delete admission logs
-      allow update, delete: if isRegistrar();
+      allow update, delete: if request.auth != null;
     }
 
     // 3. Pupil Ledger & Accounts Database compilation rules
     match /hgs_students/{studentId} {
       // Verified Registrars can modify records
-      allow create, update, delete: if isRegistrar();
+      allow create, update, delete: if request.auth != null;
       // Allow reading so that students can check report sheets and authenticate
       allow read: if true;
     }
@@ -36,13 +35,18 @@ service cloud.firestore {
       // Visitors can securely submit inquiry reports
       allow create: if true;
       // Master registers restricted to administrative review
-      allow read, update, delete: if isRegistrar();
+      allow read, update, delete: if request.auth != null;
     }
 
     // 5. Audit Activity log audits
     match /hgs_activity_logs/{logId} {
       // Registrar can read/write logs
-      allow create, read, update, delete: if isRegistrar();
+      allow create, read, update, delete: if request.auth != null;
+    }
+
+    // 6. System audit logs (V2)
+    match /system_audit_logs/{logId} {
+      allow create, read, update, delete: if request.auth != null;
     }
   }
 }

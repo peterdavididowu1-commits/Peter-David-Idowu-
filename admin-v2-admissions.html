@@ -569,10 +569,10 @@
           <a href="admin-v2-dashboard.html"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
         </li>
         <li class="db-menu-item active">
-          <a href="admin-v2-admissions.html"><i class="fa-solid fa-user-graduate"></i> Admissions</a>
+          <a href="admin-v2-admissions.html"><i class="fa-solid fa-user-graduate"></i> Admissions Processing Center</a>
         </li>
         <li class="db-menu-item">
-          <a href="admin-v2-students.html"><i class="fa-solid fa-address-book"></i> Student Directory</a>
+          <a href="admin-v2-students.html"><i class="fa-solid fa-address-book"></i> Class Management</a>
         </li>
         <li class="db-menu-item">
           <a href="admin-v2-messages.html"><i class="fa-solid fa-envelope-open-text"></i> Enquiries Inbox</a>
@@ -596,7 +596,7 @@
     <div class="db-main">
       <div class="db-header">
         <div>
-          <h2>Admissions Registry Control</h2>
+          <h2>Admissions Processing Center</h2>
           <p>Review admissions payload, verify parent declarations, approve and onboard profiles.</p>
         </div>
       </div>
@@ -697,7 +697,8 @@
       approveAdmission, 
       rejectAdmission, 
       markAdmissionAsPending, 
-      logoutAdministrator 
+      logoutAdministrator,
+      sendEmailNotification
     } from './assets/js/admin-v2.js';
 
     let allAdmissions = [];
@@ -730,6 +731,75 @@
       return cls;
     }
 
+    function applyFiltering() {
+      const searchVal = document.getElementById('admissionSearch').value.toLowerCase().trim();
+      const statusFilter = document.getElementById('statusFilter').value;
+
+      const filtered = allAdmissions.filter(item => {
+        const studentName = (item.studentName || item.fullName || '').toLowerCase();
+        const parentName = (item.parentName || item.guardianName || '').toLowerCase();
+        const matchesSearch = studentName.includes(searchVal) || parentName.includes(searchVal);
+
+        const status = item.status || 'Pending';
+        const matchesStatus = (statusFilter === 'ALL' || status === statusFilter);
+
+        const rawClass = item.gradeApplying || item.classRequested || item.class || 'Primary 1';
+        const normClass = normalizeClassName(rawClass);
+        const matchesFolder = (selectedFolder === 'ALL' || normClass === selectedFolder);
+
+        return matchesSearch && matchesStatus && matchesFolder;
+      });
+
+      renderAdmissions(filtered);
+    }
+
+    function renderAdmissions(list) {
+      const container = document.getElementById('admissionsTbody');
+      if (!container) return;
+
+      document.getElementById('tableBoard').style.display = list.length > 0 ? 'block' : 'none';
+      
+      if (list.length === 0) {
+        container.innerHTML = `
+          <tr>
+            <td colspan="7" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+              <i class="fa-solid fa-folder-open" style="font-size: 2.5rem; color: var(--primary); margin-bottom: 0.75rem; display: block;"></i>
+              <strong style="display: block; margin-bottom: 0.25rem;">No matching admission records found</strong>
+              <span style="font-size: 0.85rem;">Try adjusting your class, status, or search query parameters.</span>
+            </td>
+          </tr>
+        `;
+        document.getElementById('tableBoard').style.display = 'block';
+        return;
+      }
+
+      container.innerHTML = list.map(item => {
+        const date = item.createdAt ? new Date(item.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A';
+        const studentName = item.studentName || item.fullName || 'Pupil Candidate';
+        const classVal = item.gradeApplying || item.classRequested || item.class || 'Primary 1';
+        const parentName = item.parentName || item.guardianName || 'Unspecified';
+        const email = item.parentEmail || item.guardianEmail || item.email || 'N/A';
+        const status = item.status || 'Pending';
+        const badgeClass = status === 'Approved' ? 'status-approved' : (status === 'Rejected' ? 'status-rejected' : 'status-pending');
+
+        return `
+          <tr>
+            <td><span style="font-size:0.85rem; color:var(--text-muted); font-weight:500;">${escapeHTML(date)}</span></td>
+            <td><strong>${escapeHTML(studentName)}</strong></td>
+            <td><span class="badge-class" style="font-size:0.8rem; font-weight:700; color:var(--text-dark);">${escapeHTML(classVal)}</span></td>
+            <td>${escapeHTML(parentName)}</td>
+            <td><code style="font-size:0.8rem; color:#475569;">${escapeHTML(email)}</code></td>
+            <td><span class="badge-status ${badgeClass}">${status}</span></td>
+            <td style="text-align: right;">
+              <button class="btn-action-view" onclick="openDetailsModal('${item.id || item.docId}')">
+                <i class="fa-solid fa-file-pen"></i> Inspect \& Action
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
     async function initPage() {
       const user = await requireAuthentication();
       if (!user) return; // Redirected
@@ -748,11 +818,14 @@
         document.getElementById('tableBoard').style.display = 'none';
 
         allAdmissions = await getAdmissions();
+        console.log("Admissions Loaded: " + allAdmissions.length);
         renderFolders();
         applyFiltering();
       } catch (err) {
-        console.error(err);
-        alert("Database Synchronization Error: Unable to fetch Admissions records.");
+        console.error("Admissions loading failed:", err);
+        const errCode = err.code || "unknown-error";
+        const errMsg = err.message || "An unexpected error occurred.";
+        alert(errCode + " : " + errMsg);
       }
     }
 
@@ -1049,6 +1122,12 @@
         `;
       }
 
+      if (email) {
+        btnsHTML += `
+          <button class="btn-print" style="background:#10b981; color:white;" onclick="triggerCustomEmail('${item.id}', '${email}')"><i class="fa-solid fa-envelope"></i> Send Email</button>
+        `;
+      }
+
       if (status !== 'Pending') {
         btnsHTML += `
           <button class="btn-pending" onclick="triggerPending('${item.id}')"><i class="fa-solid fa-hourglass-start"></i> Move back to Pending</button>
@@ -1124,6 +1203,39 @@
       } catch (err) {
         console.error(err);
         alert(`Error: ${err.message}`);
+        renderModalActions(activeItem);
+      }
+    };
+
+    window.triggerCustomEmail = async function(id, email) {
+      if (!email) {
+        alert("This record does not contain a valid recipient email address.");
+        return;
+      }
+
+      const subject = prompt("Enter email subject:", "Update regarding your His Grace School registration folder");
+      if (subject === null) return; // Canceled
+      if (subject.trim() === "") {
+        alert("Subject cannot be blank.");
+        return;
+      }
+
+      const text = prompt("Enter email message text body:", `Dear Parent/Guardian,\n\nWe would like to coordinate about your application for your pupil.\n\nBest regards,\nHis Grace School Office`);
+      if (text === null) return; // Canceled
+      if (text.trim() === "") {
+        alert("Message text cannot be blank.");
+        return;
+      }
+
+      try {
+        document.getElementById('modalActionsPlaceholder').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Dispatching communication...';
+        
+        await sendEmailNotification(email, subject, text, activeItem ? (activeItem.studentName || activeItem.fullName) : "Pupil");
+        alert("Email communication has been dispatched successfully.");
+        renderModalActions(activeItem);
+      } catch (err) {
+        console.error(err);
+        alert(`Error sending email: ${err.message}`);
         renderModalActions(activeItem);
       }
     };
