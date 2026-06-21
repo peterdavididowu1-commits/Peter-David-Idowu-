@@ -282,7 +282,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const res = await loginStudent(portalIdStr, portalPassword);
 
         if (res.success) {
-          window.location.href = 'student-portal.html';
+          window.location.href = 'student-portal-v2.html';
         }
       } catch (err) {
         console.error("Student login failed:", err);

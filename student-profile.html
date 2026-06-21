@@ -225,7 +225,7 @@
       
       <!-- Desktop Portal Button -->
       <div class="nav-cta">
-        <a href="student-portal.html" class="btn btn-primary"><i class="fa-solid fa-user-graduate"></i> My Portal</a>
+        <a href="student-portal-v2.html" class="btn btn-primary"><i class="fa-solid fa-user-graduate"></i> My Portal</a>
       </div>
 
       <!-- Mobile Menu Toggle Button -->
@@ -244,7 +244,7 @@
       <li><a href="about.html" class="nav-link">About Us</a></li>
       <li><a href="admissions.html" class="nav-link">Admissions</a></li>
       <li><a href="contact.html" class="nav-link">Contact Us</a></li>
-      <li><a href="student-portal.html" class="nav-link active"><i class="fa-solid fa-user-graduate"></i> Student Portal</a></li>
+      <li><a href="student-portal-v2.html" class="nav-link active"><i class="fa-solid fa-user-graduate"></i> Student Portal</a></li>
     </ul>
   </div>
 
@@ -276,19 +276,19 @@
         <h5 style="text-transform: uppercase; font-size: 0.75rem; color: var(--text-muted); font-weight: 800; letter-spacing: 0.05em; padding-left: 0.75rem;">Interactive Panel</h5>
         <ul class="portal-menu">
           <li class="portal-menu-item">
-            <a href="student-portal.html"><i class="fa-solid fa-bullhorn" style="width: 20px;"></i> School Noticeboard</a>
+            <a href="student-portal-v2.html"><i class="fa-solid fa-bullhorn" style="width: 20px;"></i> School Noticeboard</a>
           </li>
           <li class="portal-menu-item active">
             <a href="student-profile.html"><i class="fa-solid fa-id-card" style="width: 20px;"></i> Student Profile</a>
           </li>
           <li class="portal-menu-item">
-            <a href="student-portal.html?tab=grades"><i class="fa-solid fa-square-poll-vertical" style="width: 20px;"></i> Termly Report Sheet</a>
+            <a href="student-portal-v2.html"><i class="fa-solid fa-square-poll-vertical" style="width: 20px;"></i> Termly Report Sheet</a>
           </li>
           <li class="portal-menu-item">
-            <a href="student-portal.html?tab=homework"><i class="fa-solid fa-book-open-reader" style="width: 20px;"></i> Homework Tasks</a>
+            <a href="student-portal-v2.html"><i class="fa-solid fa-book-open-reader" style="width: 20px;"></i> Homework Tasks</a>
           </li>
           <li class="portal-menu-item">
-            <a href="student-portal.html?tab=billings"><i class="fa-solid fa-wallet" style="width: 20px;"></i> Accounts & Billings</a>
+            <a href="student-portal-v2.html"><i class="fa-solid fa-circle-user" style="width: 20px;"></i> Account Details</a>
           </li>
         </ul>
       </aside>
@@ -600,7 +600,7 @@
               </p>
               <div style="margin-top: 1.5rem; display: flex; gap: 1rem; justify-content: center;">
                 <button class="btn btn-primary" onclick="window.location.reload()"><i class="fa-solid fa-arrows-rotate"></i> Retry Loading</button>
-                <a href="student-portal.html" class="btn btn-outline"><i class="fa-solid fa-bullhorn"></i> Return to Noticeboard</a>
+                <a href="student-portal-v2.html" class="btn btn-outline"><i class="fa-solid fa-bullhorn"></i> Return to Noticeboard</a>
               </div>
             </div>
           `;
@@ -624,7 +624,7 @@
           e.preventDefault();
           if (confirm("Are you sure you want to securely log out of your Student Learning Console?")) {
             logoutStudent();
-            window.location.replace('login.html');
+            window.location.replace('student-portal-v2.html');
           }
         });
       }
