@@ -149,17 +149,14 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error("Admission submission error:", err);
         const alertError = document.getElementById('errorAlert');
         if (alertError) {
-          const errorCode = err.code || "unknown-error-code";
-          const errorMessage = err.message || "An unexpected error occurred.";
           alertError.style.cssText = 'display: block; background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; padding: 1.25rem; border-radius: 8px; margin-bottom: 1.5rem;';
           alertError.innerHTML = `
-            <div style="font-weight: 800; margin-bottom: 0.5rem;"><i class="fa-solid fa-triangle-exclamation"></i> Firestore Write Failure Details:</div>
-            <div style="font-family: monospace; font-size: 0.95rem; background: #fff; border: 1px solid #fda4af; padding: 0.75rem; border-radius: 6px; margin: 0.5rem 0; word-break: break-word;">
-              <strong>Error Code:</strong> <span style="color: #dc2626;" id="firestore_error_code">${errorCode}</span><br>
-              <strong>Error Message:</strong> <span id="firestore_error_message">${errorMessage}</span>
-            </div>
-            <div style="font-size: 0.85rem; margin-top: 0.5rem;">
-              <em>This real Firebase error confirms that Firestore rejected the direct write to the <code style="background:rgba(0,0,0,0.05); padding:2px 4px; border-radius:3px;">hgs_admissions</code> collection. If the error is <code>permission-denied</code> or <code>missing-or-insufficient-permissions</code>, unauthenticated public submissions are currently locked by live Database Rules. Please apply the recommended Firestore Rules in your Firebase console.</em>
+            <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
+              <i class="fa-solid fa-circle-exclamation" style="font-size: 1.25rem; margin-top: 0.15rem; color: #dc2626; flex-shrink: 0;"></i>
+              <div>
+                <strong style="display: block; margin-bottom: 0.25rem; font-weight: 700;">Submission Error</strong>
+                <span>Submission not completed. Please check your internet connection and try again.</span>
+              </div>
             </div>
           `;
           window.scrollTo({ top: alertError.offsetTop - 120, behavior: 'smooth' });
