@@ -1702,18 +1702,42 @@ export const saveCbtExam = async (examPayload) => {
     }
     const docRef = sdkFirestore.doc(db, "cbt_exams", docId);
     
+    // Fetch associated questions to populate questions array as per requirement 4
+    let questions = examPayload.questions || [];
+    if (questions.length === 0) {
+      try {
+        const qColRef = sdkFirestore.collection(db, "cbt_questions");
+        const qQuery = sdkFirestore.query(qColRef, sdkFirestore.where("examId", "==", docId));
+        const qSnap = await sdkFirestore.getDocs(qQuery);
+        qSnap.forEach(qDoc => {
+          questions.push(qDoc.data());
+        });
+      } catch (err) {
+        console.warn("Could not fetch associated questions during save:", err);
+      }
+    }
+
+    const titleVal = examPayload.title || examPayload.examTitle || "";
+    const classVal = examPayload.class || examPayload.targetClass || "";
+    const sessionVal = examPayload.session || examPayload.academicSession || "2025/2026";
+    
     const record = {
       id: docId,
-      examTitle: examPayload.examTitle || "",
+      examTitle: titleVal,
+      title: titleVal,
       subject: examPayload.subject || "",
-      class: examPayload.class || "",
-      academicSession: examPayload.academicSession || "2025/2026",
+      class: classVal,
+      targetClass: classVal,
+      academicSession: sessionVal,
+      session: sessionVal,
       term: examPayload.term || "First Term",
       examDate: examPayload.examDate || "",
       startTime: examPayload.startTime || "",
       endTime: examPayload.endTime || "",
       duration: Number(examPayload.duration) || 60,
-      published: examPayload.published !== undefined ? examPayload.published : false,
+      status: "Published", // Requirement 6: Automatically save: status = "Published"
+      published: true,
+      questions: questions,
       createdAt: examPayload.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -1755,9 +1779,40 @@ export const getCbtExams = async () => {
     const colRef = sdkFirestore.collection(db, "cbt_exams");
     const snap = await sdkFirestore.getDocs(colRef);
     const exams = [];
-    snap.forEach(doc => {
-      exams.push(doc.data());
-    });
+    for (const doc of snap.docs) {
+      const data = doc.data();
+      const titleVal = data.examTitle || data.title || "";
+      const classVal = data.class || data.targetClass || "";
+      const sessionVal = data.academicSession || data.session || "2025/2026";
+      
+      let questions = data.questions || [];
+      if (questions.length === 0) {
+        try {
+          const qColRef = sdkFirestore.collection(db, "cbt_questions");
+          const qQuery = sdkFirestore.query(qColRef, sdkFirestore.where("examId", "==", data.id));
+          const qSnap = await sdkFirestore.getDocs(qQuery);
+          qSnap.forEach(qDoc => {
+            questions.push(qDoc.data());
+          });
+        } catch (err) {
+          console.warn("Could not fetch associated questions:", err);
+        }
+      }
+
+      const unifiedExam = {
+        ...data,
+        examTitle: titleVal,
+        title: titleVal,
+        class: classVal,
+        targetClass: classVal,
+        academicSession: sessionVal,
+        session: sessionVal,
+        status: data.status || "Published",
+        published: data.published !== undefined ? data.published : true,
+        questions: questions
+      };
+      exams.push(unifiedExam);
+    }
     return exams;
   } catch (err) {
     console.error("Error getting CBT Exams:", err);
@@ -1772,9 +1827,40 @@ export const getCbtExamsByClass = async (studentClass) => {
     const q1 = sdkFirestore.query(colRef, sdkFirestore.where("class", "==", studentClass));
     const snap = await sdkFirestore.getDocs(q1);
     const exams = [];
-    snap.forEach(doc => {
-      exams.push(doc.data());
-    });
+    for (const doc of snap.docs) {
+      const data = doc.data();
+      const titleVal = data.examTitle || data.title || "";
+      const classVal = data.class || data.targetClass || "";
+      const sessionVal = data.academicSession || data.session || "2025/2026";
+      
+      let questions = data.questions || [];
+      if (questions.length === 0) {
+        try {
+          const qColRef = sdkFirestore.collection(db, "cbt_questions");
+          const qQuery = sdkFirestore.query(qColRef, sdkFirestore.where("examId", "==", data.id));
+          const qSnap = await sdkFirestore.getDocs(qQuery);
+          qSnap.forEach(qDoc => {
+            questions.push(qDoc.data());
+          });
+        } catch (err) {
+          console.warn("Could not fetch associated questions:", err);
+        }
+      }
+
+      const unifiedExam = {
+        ...data,
+        examTitle: titleVal,
+        title: titleVal,
+        class: classVal,
+        targetClass: classVal,
+        academicSession: sessionVal,
+        session: sessionVal,
+        status: data.status || "Published",
+        published: data.published !== undefined ? data.published : true,
+        questions: questions
+      };
+      exams.push(unifiedExam);
+    }
     return exams;
   } catch (err) {
     console.error("Error getting CBT Exams by Class:", err);
@@ -1805,6 +1891,26 @@ export const saveCbtQuestion = async (questionPayload) => {
     };
     
     await sdkFirestore.setDoc(docRef, record, { merge: true });
+
+    // Update parent exam record questions array as well
+    try {
+      const examDocRef = sdkFirestore.doc(db, "cbt_exams", questionPayload.examId);
+      const examSnap = await sdkFirestore.getDoc(examDocRef);
+      if (examSnap.exists()) {
+        const examData = examSnap.data();
+        let currentQuestions = examData.questions || [];
+        const existingIdx = currentQuestions.findIndex(q => q.id === docId);
+        if (existingIdx !== -1) {
+          currentQuestions[existingIdx] = record;
+        } else {
+          currentQuestions.push(record);
+        }
+        await sdkFirestore.setDoc(examDocRef, { questions: currentQuestions }, { merge: true });
+      }
+    } catch (eErr) {
+      console.warn("Parent exam update after question save failed:", eErr);
+    }
+    
     return { success: true, docId };
   } catch (err) {
     console.error("Error saving CBT Question:", err);
@@ -1815,8 +1921,30 @@ export const saveCbtQuestion = async (questionPayload) => {
 export const deleteCbtQuestion = async (questionId) => {
   if (!db) throw new Error("Firestore not initialized.");
   try {
-    const docRef = sdkFirestore.doc(db, "cbt_questions", questionId);
-    await sdkFirestore.deleteDoc(docRef);
+    const qDocRef = sdkFirestore.doc(db, "cbt_questions", questionId);
+    const qSnap = await sdkFirestore.getDoc(qDocRef);
+    let examId = null;
+    if (qSnap.exists()) {
+      examId = qSnap.data().examId;
+    }
+
+    await sdkFirestore.deleteDoc(qDocRef);
+
+    if (examId) {
+      try {
+        const examDocRef = sdkFirestore.doc(db, "cbt_exams", examId);
+        const examSnap = await sdkFirestore.getDoc(examDocRef);
+        if (examSnap.exists()) {
+          const examData = examSnap.data();
+          let currentQuestions = examData.questions || [];
+          currentQuestions = currentQuestions.filter(q => q.id !== questionId);
+          await sdkFirestore.setDoc(examDocRef, { questions: currentQuestions }, { merge: true });
+        }
+      } catch (eErr) {
+        console.warn("Parent exam update after question delete failed:", eErr);
+      }
+    }
+
     return { success: true };
   } catch (err) {
     console.error("Error deleting CBT Question:", err);

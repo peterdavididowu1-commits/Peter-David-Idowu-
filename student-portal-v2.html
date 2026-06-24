@@ -621,6 +621,38 @@
                  
                  <!-- STATE 1: EXAMS ROSTER VIEW -->
                  <div id="studentCbtRosterView">
+                    <!-- DIAGNOSTIC PANEL (Requirement 3 & 8) -->
+                    <div style="background-color: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 1.25rem; margin-bottom: 2rem; box-shadow: var(--shadow-xs);">
+                      <h4 style="margin: 0 0 0.75rem 0; font-size: 0.95rem; color: var(--primary); font-weight: 800; display: flex; align-items: center; gap: 0.5rem; text-transform: uppercase; letter-spacing: 0.025em;">
+                        <i class="fa-solid fa-circle-info" style="color: var(--secondary);"></i> CBT Examination Diagnostic Center & Audit
+                      </h4>
+                      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; font-size: 0.85rem; color: var(--text-dark);">
+                        <div style="background-color: #ffffff; padding: 0.75rem 1rem; border-radius: 6px; border: 1.5px solid #e2e8f0; display: flex; flex-direction: column; gap: 0.25rem;">
+                          <span style="color: var(--text-muted); font-size: 0.7rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em;">Firebase Collection Names</span>
+                          <span style="font-size: 0.8rem; font-weight: bold; color: var(--primary);">Teacher Portal: <code style="background-color: #f1f5f9; padding: 0.15rem 0.3rem; border-radius: 3px; font-family: monospace;">cbt_exams</code></span>
+                          <span style="font-size: 0.8rem; font-weight: bold; color: var(--primary);">Student Portal: <code style="background-color: #f1f5f9; padding: 0.15rem 0.3rem; border-radius: 3px; font-family: monospace;">cbt_exams</code></span>
+                        </div>
+                        <div style="background-color: #ffffff; padding: 0.75rem 1rem; border-radius: 6px; border: 1.5px solid #e2e8f0; display: flex; flex-direction: column; justify-content: center; text-align: center;">
+                          <span style="color: var(--text-muted); font-size: 0.7rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em;">Total Exams in DB</span>
+                          <strong style="font-size: 1.4rem; color: var(--primary); margin-top: 0.25rem;" id="diagnosticTotalExams">-</strong>
+                        </div>
+                        <div style="background-color: #ffffff; padding: 0.75rem 1rem; border-radius: 6px; border: 1.5px solid #e2e8f0; display: flex; flex-direction: column; justify-content: center; text-align: center;">
+                          <span style="color: var(--text-muted); font-size: 0.7rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em;">Total Published Exams</span>
+                          <strong style="font-size: 1.4rem; color: #16a34a; margin-top: 0.25rem;" id="diagnosticPublishedExams">-</strong>
+                        </div>
+                        <div style="background-color: #ffffff; padding: 0.75rem 1rem; border-radius: 6px; border: 1.5px solid #e2e8f0; display: flex; flex-direction: column; justify-content: center; text-align: center;">
+                          <span style="color: var(--text-muted); font-size: 0.7rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em;">Student Class Category</span>
+                          <strong style="font-size: 1.2rem; color: var(--secondary); margin-top: 0.25rem;" id="diagnosticStudentClass">-</strong>
+                        </div>
+                        <div style="background-color: #ffffff; padding: 0.75rem 1rem; border-radius: 6px; border: 1.5px solid #e2e8f0; display: flex; flex-direction: column; justify-content: center; text-align: center;">
+                          <span style="color: var(--text-muted); font-size: 0.7rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em;">Matching Exams Found</span>
+                          <strong style="font-size: 1.4rem; color: var(--primary); margin-top: 0.25rem;" id="diagnosticMatchingExams">-</strong>
+                        </div>
+                      </div>
+                      <div style="font-size: 0.775rem; color: #475569; margin-top: 0.85rem; display: flex; align-items: center; gap: 0.35rem; border-top: 1px solid #e2e8f0; padding-top: 0.65rem;">
+                        <i class="fa-solid fa-circle-check" style="color: #16a34a;"></i> <span><strong>Audit Note:</strong> The active date/time-locking filter is temporarily bypassed. Any published CBT exams matching your class are displayed below with an active <strong>Start Exam</strong> button.</span>
+                      </div>
+                    </div>
                    <div style="border-bottom: 2px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 2rem;">
                      <h3 style="font-size: 1.4rem; color: var(--primary); font-weight: 800; margin: 0;"><i class="fa-solid fa-laptop-code" style="color: var(--secondary);"></i> Computer-Based Testing (CBT) Center</h3>
                      <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">Select an available assignment or termly test to begin examination.</p>
@@ -1498,8 +1530,21 @@
 
         // Filter CBT exams matching student class category
         const matchClassExams = allPublishedExams.filter(ex => {
-          return (ex.targetClass || '').toLowerCase().trim() === (studentClass || '').toLowerCase().trim();
+          const classMatches = (ex.targetClass || ex.class || '').toLowerCase().trim() === (studentClass || '').toLowerCase().trim();
+          const isPublished = (ex.status === 'Published' || ex.published === true);
+          return classMatches && isPublished;
         });
+
+        // Update CBT Diagnostic & Audit Panel (Requirements 3 & 8)
+        const diagTotal = document.getElementById("diagnosticTotalExams");
+        const diagPub = document.getElementById("diagnosticPublishedExams");
+        const diagClass = document.getElementById("diagnosticStudentClass");
+        const diagMatch = document.getElementById("diagnosticMatchingExams");
+
+        if (diagTotal) diagTotal.textContent = allPublishedExams.length;
+        if (diagPub) diagPub.textContent = allPublishedExams.filter(e => e.status === 'Published' || e.published).length;
+        if (diagClass) diagClass.textContent = studentClass || "None";
+        if (diagMatch) diagMatch.textContent = matchClassExams.length;
 
         if (studentCbtLoading) studentCbtLoading.style.display = "none";
 
@@ -1535,47 +1580,21 @@
             stateBadgeColor = "#d4edda";
             stateBadgeText = `Taken: ${takenRecord.percentage}% Verified`;
             actionButtonHtml = `
-              <button class="btn btn-outline view-cbt-result-btn" style="flex: 1; padding: 0.6rem 1rem;" data-score="${takenRecord.score}" data-total="${takenRecord.totalQuestions}" data-pct="${takenRecord.percentage}" data-title="${exam.title}">
+              <button class="btn btn-outline view-cbt-result-btn" style="flex: 1; padding: 0.6rem 1rem;" data-score="${takenRecord.score}" data-total="${takenRecord.totalQuestions}" data-pct="${takenRecord.percentage}" data-title="${exam.title || exam.examTitle}">
                 <i class="fa-solid fa-square-poll-vertical"></i> View Scorecard
               </button>
             `;
           } else {
-            // Check if within date and time window
-            const examD = exam.examDate; // YYYY-MM-DD
-            const startT = exam.startTime; // HH:MM
-            const endT = exam.endTime; // HH:MM
-
-            const currentDateTime = new Date();
-            const examStartDateTime = new Date(`${examD}T${startT}`);
-            const examEndDateTime = new Date(`${examD}T${endT}`);
-
-            if (currentDateTime < examStartDateTime) {
-              stateBadgeColor = "#fff3cd";
-              stateBadgeText = "Scheduled / Locked";
-              actionButtonHtml = `
-                <button class="btn btn-outline" style="flex: 1; padding: 0.6rem 1rem;" disabled>
-                  <i class="fa-solid fa-lock"></i> Opens at ${exam.startTime}
-                </button>
-              `;
-            } else if (currentDateTime > examEndDateTime) {
-              stateBadgeColor = "#fee2e2";
-              stateBadgeText = "Closed / Overdue";
-              actionButtonHtml = `
-                <button class="btn btn-outline" style="flex: 1; border-color: #dc3545; color: #dc3545; padding: 0.6rem 1rem;" disabled>
-                  <i class="fa-solid fa-circle-xmark"></i> Exam Window Passed
-                </button>
-              `;
-            } else {
-              stateBadgeColor = "#e0f2fe";
-              stateBadgeText = "Exam Session Active";
-              actionButtonHtml = `
-                <button class="btn start-cbt-btn" style="flex: 1; background-color: #28a745; border-color: #28a745; color: white; font-weight: bold; padding: 0.6rem 1rem;" data-id="${exam.id}">
-                  <i class="fa-solid fa-circle-play"></i> Launch Test Server
-                </button>
-              `;
-            }
+            // Requirements 9 & 10: Temporarily disable time filtering and display Start Exam Button
+            stateBadgeColor = "#e0f2fe";
+            stateBadgeText = "Exam Session Active";
+            actionButtonHtml = `
+              <button class="btn start-cbt-btn" style="flex: 1; background-color: #28a745; border-color: #28a745; color: white; font-weight: bold; padding: 0.6rem 1rem;" data-id="${exam.id}">
+                <i class="fa-solid fa-circle-play"></i> Start Exam
+              </button>
+            `;
           }
-
+          
           card.innerHTML = `
             <div>
               <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.75rem;">
@@ -1585,7 +1604,7 @@
                 <span style="font-size: 0.75rem; font-weight: bold; color: var(--text-muted);"><i class="fa-regular fa-clock"></i> ${exam.duration} mins</span>
               </div>
               <h4 style="font-size: 1.15rem; font-weight: 850; color: var(--primary); margin-bottom: 0.5rem; line-height: 1.4;">
-                ${exam.title}
+                ${exam.title || exam.examTitle}
               </h4>
               <p style="font-size: 0.825rem; color: var(--text-muted); margin-bottom: 1rem;">
                 <strong>Subject:</strong> ${exam.subject} (${exam.term})
