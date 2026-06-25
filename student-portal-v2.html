@@ -737,8 +737,6 @@
                            <div><strong>Opt D:</strong> <span id="diagActiveOptD" style="color: #0284c7;">-</span></div>
                          </div>
                        </div>
-                       <div style="display: none;"
-                      </div>
                     </div>
 
                     <!-- Quick Navigation Palette -->
@@ -2449,6 +2447,7 @@
           term: exam.term,
           academicSession: exam.session || "2025/2026",
           session: exam.session || "2025/2026",
+          totalQuestions: totalQuestions,
           score: score,
           correctAnswers: score,
           wrongAnswers: totalQuestions - score,
