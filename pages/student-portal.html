@@ -500,8 +500,14 @@
           <li><a href="../index.html" class="nav-link">Home</a></li>
           <li><a href="about.html" class="nav-link">About</a></li>
           <li><a href="admissions.html" class="nav-link">Admissions</a></li>
-          <li><a href="student-portal.html" class="nav-link active">Student Portal</a></li>
-          <li><a href="lecturer-portal.html" class="nav-link">Lecturer Portal</a></li>
+          <li class="dropdown">
+            <a href="#" class="nav-link dropdown-toggle active">Portal <i class="fa-solid fa-chevron-down" style="font-size: 0.7rem;"></i></a>
+            <ul class="dropdown-menu">
+              <li><a href="student-portal.html" class="dropdown-item active">Student Portal</a></li>
+              <li><a href="lecturer-portal.html" class="dropdown-item coming-soon">Lecturer Portal <span class="badge-soon">Soon</span></a></li>
+              <li><a href="admin-portal.html" class="dropdown-item coming-soon">Admin Portal <span class="badge-soon">Soon</span></a></li>
+            </ul>
+          </li>
           <li><a href="contact.html" class="nav-link">Contact</a></li>
         </ul>
       </nav>
@@ -527,8 +533,14 @@
       <li><a href="../index.html" class="nav-link">Home</a></li>
       <li><a href="about.html" class="nav-link">About</a></li>
       <li><a href="admissions.html" class="nav-link">Admissions</a></li>
-      <li><a href="student-portal.html" class="nav-link active">Student Portal</a></li>
-      <li><a href="lecturer-portal.html" class="nav-link">Lecturer Portal</a></li>
+      <li class="mobile-dropdown">
+        <a href="#" class="nav-link mobile-dropdown-toggle active">Portal <i class="fa-solid fa-chevron-down" style="font-size: 0.8rem; margin-left: 4px;"></i></a>
+        <ul class="mobile-submenu" style="list-style: none; padding-left: 1.5rem; margin-top: 0.5rem; display: none; flex-direction: column; gap: 0.75rem;">
+          <li><a href="student-portal.html" class="nav-link active" style="font-size: 0.9rem; opacity: 0.9;">Student Portal</a></li>
+          <li><a href="lecturer-portal.html" class="nav-link coming-soon" style="font-size: 0.9rem; opacity: 0.9;">Lecturer Portal <span class="badge-soon" style="margin-left: 0.5rem;">Soon</span></a></li>
+          <li><a href="admin-portal.html" class="nav-link coming-soon" style="font-size: 0.9rem; opacity: 0.9;">Admin Portal <span class="badge-soon" style="margin-left: 0.5rem;">Soon</span></a></li>
+        </ul>
+      </li>
       <li><a href="contact.html" class="nav-link">Contact</a></li>
       <li style="margin-top: 1rem;"><a href="admissions.html" class="btn btn-accent text-center" style="width: 100%;">Apply Now</a></li>
     </ul>
