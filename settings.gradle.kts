@@ -1,1 +1,1 @@
-rootProject.name = "His Grace School Web"
+rootProject.name = "Divine Mandate Bible Institute"

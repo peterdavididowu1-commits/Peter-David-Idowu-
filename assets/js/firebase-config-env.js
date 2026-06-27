@@ -1,5 +1,5 @@
-// Firebase Configuration for His Grace Nursery & Primary School (Production Environment)
-// Connected directly to the user's real live project: his-grace-school
+// Firebase Configuration for Divine Mandate Bible Institute (DIMABIN) (Production Environment)
+// Connected directly to the user's real live project: dimabin-bible-institute
 
 const firebaseConfig = {
   apiKey: "AIzaSyBtERBO2DLKoE0CWGyDcysEdrTG22NWhdU",

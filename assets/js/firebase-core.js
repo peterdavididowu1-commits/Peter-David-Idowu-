@@ -1224,7 +1224,7 @@ export const resendStudentCredentials = async (studentId, operatorName = "Regist
   // Resend mail notification only (SMS is temporarily disabled) using exact working EmailJS template mapper
   const emailResult = await sendEmailNotification(
     recipientEmail,
-    `Admission Approved – His Grace School`,
+    `Admission Approved – Divine Mandate Bible Institute`,
     notificationContent
   );
 
@@ -1409,7 +1409,7 @@ export const sendEmailNotification = async (recipientEmail, subject, payload, co
 
 Congratulations.
 
-Your application to His Grace School has been approved.
+Your application to Divine Mandate Bible Institute has been approved.
 
 Admission Number:
 ${admissionNo}
@@ -1430,7 +1430,7 @@ Please keep these credentials safe and use them to access your student portal.
 
 Regards,
 
-His Grace School Registry`;
+Divine Mandate Bible Institute Registry`;
 
   const payloadBody = {
     service_id: config.emailjsServiceId,
@@ -1512,7 +1512,7 @@ export const sendSMSNotification = async (recipientPhone, payload) => {
 };
 
 export const sendRejectionNotification = async (recipientEmail, recipientPhone, studentName, reason) => {
-  const messageContent = `Dear Guardian,\n\nWe regret to inform you that the registration request for "${studentName}" has been declined following review by His Grace High School admissions committee.\n\nExplanation details:\n"${reason}"\n\nIf you have supplementary records or wish to request reassessment, feel free to contact the desk.\n\nWarm Regards,\nRegistrar Office\nHis Grace High School`;
+  const messageContent = `Dear Guardian,\n\nWe regret to inform you that the registration request for "${studentName}" has been declined following review by Divine Mandate Bible Institute admissions committee.\n\nExplanation details:\n"${reason}"\n\nIf you have supplementary records or wish to request reassessment, feel free to contact the desk.\n\nWarm Regards,\nRegistrar Office\nDivine Mandate Bible Institute`;
 
   if (!recipientEmail || recipientEmail.trim() === "") {
     console.warn("[Rejection Notification] No recipientEmail provided. Skipping outbound dispatch.");
