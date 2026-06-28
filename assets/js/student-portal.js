@@ -707,6 +707,7 @@ async function loadResults() {
 
     snapResults.forEach(docSnap => {
       const r = docSnap.data();
+      if (r.status === "Draft") return; // Skip unpublished drafts!
       const code = r.courseCode;
       const matched = officialCoursesList.find(c => c.courseCode === code);
       const title = matched ? matched.courseTitle : "Theology Course Record";
