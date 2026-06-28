@@ -1,14 +1,13 @@
 // Firebase Configuration for Divine Mandate Bible Institute (DIMABIN) (Production Environment)
-// Connected directly to the user's real live project: dimabin-bible-institute
+// Connected directly to the user's real live project: dimabin-eb4b4
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBtERBO2DLKoE0CWGyDcysEdrTG22NWhdU",
-  authDomain: "his-grace-school.firebaseapp.com",
-  projectId: "his-grace-school",
-  storageBucket: "his-grace-school.firebasestorage.app",
-  messagingSenderId: "176638515934",
-  appId: "1:176638515934:web:084f058481321bbb0c404f",
-  measurementId: "G-LGEKPPYFRW"
+  apiKey: "AIzaSyA2sPVXKtIo6PHsWYUg4RmWGeoC731Qqvk",
+  authDomain: "dimabin-eb4b4.firebaseapp.com",
+  projectId: "dimabin-eb4b4",
+  storageBucket: "dimabin-eb4b4.firebasestorage.app",
+  messagingSenderId: "153925815119",
+  appId: "1:153925815119:web:ed01319f356e152221933a"
 };
 
 export default firebaseConfig;
