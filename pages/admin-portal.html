@@ -1163,6 +1163,9 @@
           <button class="sidebar-nav-btn" data-tab="students">
             <i class="fa-solid fa-user-graduate"></i> Student Directory
           </button>
+          <button class="sidebar-nav-btn" data-tab="lecturer-management">
+            <i class="fa-solid fa-chalkboard-user"></i> Lecturer Management
+          </button>
           <button class="sidebar-nav-btn" data-tab="emailjs">
             <i class="fa-solid fa-sliders"></i> EmailJS & Settings
           </button>
@@ -1407,6 +1410,195 @@
           </div>
         </div>
 
+        <!-- Tab 5: Lecturer Management -->
+        <div class="tab-content" id="tab-lecturer-management">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+            <div>
+              <h2 class="font-display" style="color: var(--primary); font-size: 2rem; margin-bottom: 0.5rem; font-weight: 800;">Lecturer Management</h2>
+              <p style="color: var(--text-muted);">Configure faculty profiles, course allocation vectors, and security controls.</p>
+            </div>
+            <div style="display: flex; gap: 0.75rem;">
+              <button class="btn sub-tab-btn active" data-subtab="list" title="All Lecturers Directory" style="background-color: #1F3B82; color: white; width: 44px; height: 44px; border-radius: 6px; display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; transition: all 0.2s;"><i class="fa-solid fa-list-ul" style="font-size: 1.15rem;"></i></button>
+              <button class="btn sub-tab-btn" data-subtab="register" title="Register New Lecturer" style="background-color: #1F3B82; color: white; width: 44px; height: 44px; border-radius: 6px; display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; transition: all 0.2s;"><i class="fa-solid fa-user-plus" style="font-size: 1.15rem;"></i></button>
+            </div>
+          </div>
+
+          <!-- SUB-TAB 1: All Lecturers Directory -->
+          <div class="lecturer-subtab-content" id="subtab-list">
+            <!-- Filter & Sort Controls -->
+            <div class="search-filter-bar" style="display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; background-color: var(--bg-white); padding: 1.25rem; border-radius: 6px; border: 1.5px solid var(--border-color);">
+              <div class="search-input-wrapper" style="flex: 1; min-width: 250px;">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="searchLecturersInput" placeholder="Search directory by ID, name, department..." style="width: 100%; border: none; outline: none; background: transparent; font-family: 'Poppins', sans-serif;">
+              </div>
+              <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+                <select id="filterLecturerStatus" class="form-control" style="width: auto; min-width: 140px; font-family: 'Poppins', sans-serif; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; padding: 0.5rem 0.75rem;">
+                  <option value="all">All Statuses</option>
+                  <option value="Active">Active</option>
+                  <option value="Suspended">Suspended</option>
+                </select>
+                <select id="sortLecturerBy" class="form-control" style="width: auto; min-width: 160px; font-family: 'Poppins', sans-serif; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; padding: 0.5rem 0.75rem;">
+                  <option value="name-asc">Sort: Name (A-Z)</option>
+                  <option value="name-desc">Sort: Name (Z-A)</option>
+                  <option value="id-asc">Sort: ID (Asc)</option>
+                  <option value="id-desc">Sort: ID (Desc)</option>
+                  <option value="date-desc">Sort: Newest First</option>
+                </select>
+                <!-- Reset filter button - Icons only -->
+                <button id="btnResetLecturerFilters" class="btn" title="Reset Filters" style="background-color: #1F3B82; color: white; width: 40px; height: 40px; border-radius: 6px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-rotate-left"></i></button>
+              </div>
+            </div>
+
+            <!-- Lecturers Table -->
+            <div class="table-container" style="background-color: var(--bg-white); border-radius: 6px; overflow-x: auto; border: 1.5px solid var(--border-color);">
+              <table class="custom-table" style="width: 100%; border-collapse: collapse; min-width: 800px;">
+                <thead>
+                  <tr style="background-color: var(--bg-slate); text-align: left; border-bottom: 1.5px solid var(--border-color);">
+                    <th style="padding: 1rem; color: var(--primary); font-weight: 700;">Lecturer ID</th>
+                    <th style="padding: 1rem; color: var(--primary); font-weight: 700;">Name</th>
+                    <th style="padding: 1rem; color: var(--primary); font-weight: 700;">Department</th>
+                    <th style="padding: 1rem; color: var(--primary); font-weight: 700;">Assigned Courses</th>
+                    <th style="padding: 1rem; color: var(--primary); font-weight: 700;">Status</th>
+                    <th style="padding: 1rem; color: var(--primary); font-weight: 700; text-align: center;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="lecturersTableBody">
+                  <tr>
+                    <td colspan="6" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+                      <i class="fa-solid fa-spinner fa-spin" style="margin-right: 0.5rem;"></i> Cataloging academic facilitators...
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- SUB-TAB 2: Register New Lecturer -->
+          <div class="lecturer-subtab-content" id="subtab-register" style="display: none;">
+            <div class="portal-support-card" style="background-color: var(--bg-white); padding: 2rem; border-radius: 6px; border: 1.5px solid var(--border-color); margin-bottom: 2rem;">
+              <h3 class="font-display" style="color: var(--primary); font-size: 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem; font-weight: 700;">
+                <i class="fa-solid fa-user-plus" style="color: var(--accent);"></i> Facilitator Enrollment Profile
+              </h3>
+              
+              <form id="registerLecturerForm">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
+                  
+                  <div class="form-group">
+                    <label for="regLecTitle" style="font-size: 0.8rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Title</label>
+                    <select id="regLecTitle" class="form-control" style="width: 100%; padding: 0.75rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+                      <option value="Rev.">Rev.</option>
+                      <option value="Pastor">Pastor</option>
+                      <option value="Dr.">Dr.</option>
+                      <option value="Prof.">Prof.</option>
+                      <option value="Mr.">Mr.</option>
+                      <option value="Mrs.">Mrs.</option>
+                      <option value="Evang.">Evang.</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="regLecFullName" style="font-size: 0.8rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Full Name</label>
+                    <input type="text" id="regLecFullName" class="form-control" placeholder="e.g. John Samuel Doe" style="width: 100%; padding: 0.75rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="regLecGender" style="font-size: 0.8rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Gender</label>
+                    <select id="regLecGender" class="form-control" style="width: 100%; padding: 0.75rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="regLecDob" style="font-size: 0.8rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Date of Birth</label>
+                    <input type="date" id="regLecDob" class="form-control" style="width: 100%; padding: 0.75rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="regLecPhone" style="font-size: 0.8rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Phone Number</label>
+                    <input type="tel" id="regLecPhone" class="form-control" placeholder="e.g. +234 803 000 0000" style="width: 100%; padding: 0.75rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="regLecWhatsapp" style="font-size: 0.8rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.5rem;">WhatsApp Number</label>
+                    <input type="tel" id="regLecWhatsapp" class="form-control" placeholder="e.g. +234 803 000 0000" style="width: 100%; padding: 0.75rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+                  </div>
+
+                  <div class="form-group" style="grid-column: span 2;">
+                    <label for="regLecEmail" style="font-size: 0.8rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Email Address</label>
+                    <input type="email" id="regLecEmail" class="form-control" placeholder="e.g. doe@dimabin.edu.ng" style="width: 100%; padding: 0.75rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+                  </div>
+
+                  <div class="form-group" style="grid-column: span 2;">
+                    <label for="regLecAddress" style="font-size: 0.8rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Residential Address</label>
+                    <textarea id="regLecAddress" rows="2" class="form-control" placeholder="Complete physical address coordinates..." style="width: 100%; padding: 0.75rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif; resize: vertical;" required></textarea>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="regLecQualification" style="font-size: 0.8rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Highest Qualification</label>
+                    <input type="text" id="regLecQualification" class="form-control" placeholder="e.g. Ph.D. in Theology, M.Div." style="width: 100%; padding: 0.75rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="regLecDepartment" style="font-size: 0.8rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Department</label>
+                    <select id="regLecDepartment" class="form-control" style="width: 100%; padding: 0.75rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+                      <option value="Theology">Theology</option>
+                      <option value="Biblical Studies">Biblical Studies</option>
+                      <option value="Christian Education">Christian Education</option>
+                      <option value="Missions & Evangelism">Missions & Evangelism</option>
+                      <option value="Pastoral Ministry">Pastoral Ministry</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="regLecPosition" style="font-size: 0.8rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Position</label>
+                    <input type="text" id="regLecPosition" class="form-control" placeholder="e.g. Senior Lecturer, Dean" style="width: 100%; padding: 0.75rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="regLecEmploymentDate" style="font-size: 0.8rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Employment Date</label>
+                    <input type="date" id="regLecEmploymentDate" class="form-control" style="width: 100%; padding: 0.75rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+                  </div>
+
+                </div>
+
+                <!-- Assigned Courses Block -->
+                <div style="margin-top: 1.5rem; margin-bottom: 1.5rem;">
+                  <label style="font-size: 0.8rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.75rem;">Course Allocation (Assign one or multiple)</label>
+                  <div id="courseAllocationCheckboxes" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.75rem; max-height: 250px; overflow-y: auto; padding: 1rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px;">
+                    <!-- Generated dynamically -->
+                    <div style="color: var(--text-muted); font-size: 0.9rem;"><i class="fa-solid fa-spinner fa-spin"></i> Retrieving theological syllabus catalog...</div>
+                  </div>
+                </div>
+
+                <!-- Submit Action (Icons Only!) -->
+                <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+                  <button type="submit" class="btn" title="Submit Registration" style="background-color: #1F3B82; color: white; border: none; width: 44px; height: 44px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.15rem; transition: background-color 0.2s;"><i class="fa-solid fa-floppy-disk"></i></button>
+                </div>
+              </form>
+
+              <!-- Registration Success Display Card (For generated IDs & Password) -->
+              <div id="regSuccessCredentialsCard" style="display: none; margin-top: 2rem; background-color: rgba(40,167,69,0.08); border: 1.5px solid #28A745; border-radius: 6px; padding: 1.5rem;">
+                <h4 style="color: #28A745; margin-top: 0; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; font-weight: 700;"><i class="fa-solid fa-circle-check"></i> Lecturer Registered Successfully!</h4>
+                <p style="font-size: 0.9rem; color: var(--text-dark); margin-bottom: 1rem;">
+                  A profile has been added to the registry and a Firebase Authentication account has been provisioned. <strong>Provide these security coordinates to the facilitator immediately:</strong>
+                </p>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; background-color: var(--bg-white); padding: 1rem; border-radius: 4px; border: 1px solid var(--border-color);">
+                  <div>
+                    <span style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700;">Lecturer ID</span>
+                    <div id="dispGeneratedLecturerId" style="font-family: monospace; font-size: 1.1rem; font-weight: 700; color: var(--primary);">DIMABIN/LEC/2026/001</div>
+                  </div>
+                  <div>
+                    <span style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700;">Temporary Password</span>
+                    <div id="dispGeneratedPassword" style="font-family: monospace; font-size: 1.1rem; font-weight: 700; color: #DC3545;">Dimabin@2026ABCD</div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
       </main>
     </div>
   </div>
@@ -1420,6 +1612,124 @@
       </div>
       <div class="modal-body" id="appDetailsBody">
         <!-- Filled dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Lecturer Profile Details & Allocation Modal -->
+  <div class="modal-overlay" id="lecturerDetailsModal" style="display: none; align-items: center; justify-content: center;">
+    <div class="modal-box" style="max-width: 750px; width: 90%; max-height: 90vh; overflow-y: auto;">
+      <div class="modal-header">
+        <h3 class="font-display" style="margin: 0; font-size: 1.25rem; display: flex; align-items: center; gap: 0.5rem; font-weight: 700;"><i class="fa-solid fa-chalkboard-user"></i> Facilitator Profile Details</h3>
+        <button class="modal-close-btn" id="btnCloseLecDetailsModal" title="Close" style="border: none; background: transparent; cursor: pointer; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body" style="padding: 1.5rem;">
+        <form id="editLecturerForm">
+          <input type="hidden" id="editLecDocId">
+          <input type="hidden" id="editLecId">
+          
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+            
+            <div class="form-group">
+              <label for="editLecTitle" style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.25rem;">Title</label>
+              <select id="editLecTitle" class="form-control" style="width: 100%; padding: 0.6rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+                <option value="Rev.">Rev.</option>
+                <option value="Pastor">Pastor</option>
+                <option value="Dr.">Dr.</option>
+                <option value="Prof.">Prof.</option>
+                <option value="Mr.">Mr.</option>
+                <option value="Mrs.">Mrs.</option>
+                <option value="Evang.">Evang.</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="editLecFullName" style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.25rem;">Full Name</label>
+              <input type="text" id="editLecFullName" class="form-control" style="width: 100%; padding: 0.6rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+            </div>
+
+            <div class="form-group">
+              <label for="editLecGender" style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.25rem;">Gender</label>
+              <select id="editLecGender" class="form-control" style="width: 100%; padding: 0.6rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="editLecDob" style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.25rem;">Date of Birth</label>
+              <input type="date" id="editLecDob" class="form-control" style="width: 100%; padding: 0.6rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+            </div>
+
+            <div class="form-group">
+              <label for="editLecPhone" style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.25rem;">Phone Number</label>
+              <input type="tel" id="editLecPhone" class="form-control" style="width: 100%; padding: 0.6rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+            </div>
+
+            <div class="form-group">
+              <label for="editLecWhatsapp" style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.25rem;">WhatsApp Number</label>
+              <input type="tel" id="editLecWhatsapp" class="form-control" style="width: 100%; padding: 0.6rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+            </div>
+
+            <div class="form-group" style="grid-column: span 2;">
+              <label for="editLecEmail" style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.25rem;">Email Address</label>
+              <input type="email" id="editLecEmail" class="form-control" style="width: 100%; padding: 0.6rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+            </div>
+
+            <div class="form-group" style="grid-column: span 2;">
+              <label for="editLecAddress" style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.25rem;">Residential Address</label>
+              <textarea id="editLecAddress" rows="2" class="form-control" style="width: 100%; padding: 0.6rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif; resize: vertical;" required></textarea>
+            </div>
+
+            <div class="form-group">
+              <label for="editLecQualification" style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.25rem;">Highest Qualification</label>
+              <input type="text" id="editLecQualification" class="form-control" style="width: 100%; padding: 0.6rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+            </div>
+
+            <div class="form-group">
+              <label for="editLecDepartment" style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.25rem;">Department</label>
+              <select id="editLecDepartment" class="form-control" style="width: 100%; padding: 0.6rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+                <option value="Theology">Theology</option>
+                <option value="Biblical Studies">Biblical Studies</option>
+                <option value="Christian Education">Christian Education</option>
+                <option value="Missions & Evangelism">Missions & Evangelism</option>
+                <option value="Pastoral Ministry">Pastoral Ministry</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="editLecPosition" style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.25rem;">Position</label>
+              <input type="text" id="editLecPosition" class="form-control" style="width: 100%; padding: 0.6rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+            </div>
+
+            <div class="form-group">
+              <label for="editLecEmploymentDate" style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.25rem;">Employment Date</label>
+              <input type="date" id="editLecEmploymentDate" class="form-control" style="width: 100%; padding: 0.6rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+            </div>
+
+            <div class="form-group">
+              <label for="editLecStatus" style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.25rem;">Profile Status</label>
+              <select id="editLecStatus" class="form-control" style="width: 100%; padding: 0.6rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+                <option value="Active">Active</option>
+                <option value="Suspended">Suspended</option>
+              </select>
+            </div>
+
+          </div>
+
+          <!-- Courses Selection inside Modal -->
+          <div style="margin-top: 1rem; margin-bottom: 1.5rem;">
+            <label style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Course Allocation (Assign courses)</label>
+            <div id="editCourseAllocationCheckboxes" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.5rem; max-height: 180px; overflow-y: auto; padding: 0.75rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px;">
+              <!-- Generated dynamically -->
+            </div>
+          </div>
+
+          <!-- Action buttons inside modal - Icons Only! -->
+          <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+            <button type="submit" class="btn" title="Save Changes" style="background-color: #1F3B82; color: white; border: none; width: 44px; height: 44px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.15rem; transition: background-color 0.2s;"><i class="fa-solid fa-floppy-disk"></i></button>
+          </div>
+        </form>
       </div>
     </div>
   </div>

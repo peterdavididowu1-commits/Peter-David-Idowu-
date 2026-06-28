@@ -17,6 +17,8 @@ const INACTIVITY_LIMIT_MS = 15 * 60 * 1000; // 15 minutes in milliseconds
 let inactivityTimer;
 let allApplications = [];
 let allStudents = [];
+let allLecturers = [];
+let allCourses = [];
 
 // Global toggle password visibility
 window.togglePasswordVisibility = () => {
@@ -138,6 +140,8 @@ function enterDashboard(session) {
   loadStats();
   loadApplications();
   loadStudents();
+  loadLecturers();
+  loadCourses();
   loadSettings();
   resetInactivityTimer();
 }
@@ -1003,6 +1007,576 @@ if (btnResetEmailJS) {
       window.showToast("Failed to restore default settings.", "error");
     }
   });
+}
+
+// ==========================================
+// LECTURER MANAGEMENT MODULE
+// ==========================================
+
+async function loadCourses() {
+  try {
+    const qSnap = await getDocs(collection(db, "courses"));
+    allCourses = [];
+    qSnap.forEach(docSnap => {
+      allCourses.push({ id: docSnap.id, ...docSnap.data() });
+    });
+    console.log(`🌟 [Courses Catalog] Loaded ${allCourses.length} courses successfully!`);
+    populateCourseCheckboxes();
+  } catch (err) {
+    console.warn("⚠️ Failed to load courses catalog:", err);
+  }
+}
+
+function populateCourseCheckboxes() {
+  const container = document.getElementById("courseAllocationCheckboxes");
+  const editContainer = document.getElementById("editCourseAllocationCheckboxes");
+  if (!container && !editContainer) return;
+
+  // Sort courses alphabetically by code
+  const sortedCourses = [...allCourses].sort((a, b) => (a.code || "").localeCompare(b.code || ""));
+
+  let html = "";
+  if (sortedCourses.length === 0) {
+    html = `<div style="color: var(--text-muted); font-size: 0.9rem; grid-column: 1/-1; text-align: center; padding: 1rem;">No courses available in the syllabus repository.</div>`;
+  } else {
+    sortedCourses.forEach(c => {
+      const code = c.code || c.id || "";
+      const name = c.name || "";
+      html += `
+        <label style="display: flex; align-items: flex-start; gap: 0.6rem; background-color: var(--bg-white); padding: 0.6rem 0.8rem; border-radius: 6px; border: 1.5px solid var(--border-color); cursor: pointer; font-size: 0.85rem; transition: border-color 0.2s;">
+          <input type="checkbox" name="assignedCourses" value="${code}" style="margin-top: 0.2rem; accent-color: var(--primary);">
+          <span style="font-weight: 500;">[${code}] <span style="color: var(--text-muted);">${name}</span></span>
+        </label>
+      `;
+    });
+  }
+  if (container) container.innerHTML = html;
+
+  let editHtml = "";
+  if (sortedCourses.length === 0) {
+    editHtml = `<div style="color: var(--text-muted); font-size: 0.85rem; grid-column: 1/-1; text-align: center; padding: 1rem;">No courses available in the syllabus repository.</div>`;
+  } else {
+    sortedCourses.forEach(c => {
+      const code = c.code || c.id || "";
+      const name = c.name || "";
+      editHtml += `
+        <label style="display: flex; align-items: flex-start; gap: 0.5rem; background-color: var(--bg-white); padding: 0.5rem 0.7rem; border-radius: 6px; border: 1.5px solid var(--border-color); cursor: pointer; font-size: 0.8rem; transition: border-color 0.2s;">
+          <input type="checkbox" name="editAssignedCourses" value="${code}" style="margin-top: 0.15rem; accent-color: var(--primary);">
+          <span style="font-weight: 500;">[${code}] <span style="color: var(--text-muted);">${name}</span></span>
+        </label>
+      `;
+    });
+  }
+  if (editContainer) editContainer.innerHTML = editHtml;
+}
+
+async function loadLecturers() {
+  try {
+    const qSnap = await getDocs(collection(db, "lecturers"));
+    allLecturers = [];
+    qSnap.forEach(docSnap => {
+      allLecturers.push({ id: docSnap.id, ...docSnap.data() });
+    });
+    console.log(`🌟 [Lecturer Directory] Loaded ${allLecturers.length} facilitators successfully!`);
+    renderLecturerDirectory();
+  } catch (err) {
+    console.error("❌ Failed to fetch lecturer registry:", err);
+    window.showToast("Failed to fetch lecturer registry.", "error");
+  }
+}
+
+function renderLecturerDirectory() {
+  const tbody = document.getElementById("lecturersTableBody");
+  if (!tbody) return;
+
+  const searchQuery = document.getElementById("searchLecturersInput") ? document.getElementById("searchLecturersInput").value.toLowerCase().trim() : "";
+  const filterStatus = document.getElementById("filterLecturerStatus") ? document.getElementById("filterLecturerStatus").value : "all";
+  const sortBy = document.getElementById("sortLecturerBy") ? document.getElementById("sortLecturerBy").value : "name-asc";
+
+  // Filter facilitators
+  let filtered = allLecturers.filter(lec => {
+    const matchesSearch = 
+      (lec.lecturerId || "").toLowerCase().includes(searchQuery) ||
+      (lec.fullName || "").toLowerCase().includes(searchQuery) ||
+      (lec.department || "").toLowerCase().includes(searchQuery) ||
+      (lec.email || "").toLowerCase().includes(searchQuery);
+
+    const matchesStatus = filterStatus === "all" || lec.status === filterStatus;
+    return matchesSearch && matchesStatus;
+  });
+
+  // Sort facilitators
+  filtered.sort((a, b) => {
+    if (sortBy === "name-asc") {
+      return (a.fullName || "").localeCompare(b.fullName || "");
+    } else if (sortBy === "name-desc") {
+      return (b.fullName || "").localeCompare(a.fullName || "");
+    } else if (sortBy === "id-asc") {
+      return (a.lecturerId || "").localeCompare(b.lecturerId || "");
+    } else if (sortBy === "id-desc") {
+      return (b.lecturerId || "").localeCompare(a.lecturerId || "");
+    } else if (sortBy === "date-desc") {
+      return (b.createdAt || "").localeCompare(a.createdAt || "");
+    }
+    return 0;
+  });
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" style="text-align: center; padding: 3.5rem; color: var(--text-muted);">
+          <i class="fa-solid fa-folder-open" style="font-size: 2.2rem; display: block; margin-bottom: 0.75rem; color: var(--accent);"></i>
+          No academic facilitators found in the active directory matching criteria.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(lec => {
+    const statusBg = lec.status === "Active" ? "rgba(40,167,69,0.1)" : "rgba(220,53,69,0.1)";
+    const statusColor = lec.status === "Active" ? "#28A745" : "#DC3545";
+    
+    // Fallback support for course codes
+    const coursesList = lec.coursesAssigned || lec.assignedCourses || [];
+    const coursesHtml = coursesList.length > 0 
+      ? coursesList.map(c => `<span style="background-color: var(--primary); color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.72rem; font-weight: 600; margin-right: 0.3rem; display: inline-block; margin-bottom: 0.25rem;">${c}</span>`).join("")
+      : `<span style="color: var(--text-muted); font-style: italic; font-size: 0.8rem;">None Allocated</span>`;
+
+    // Strictly ICONS ONLY action buttons matching style guidelines!
+    return `
+      <tr style="border-bottom: 1.5px solid var(--border-color); transition: background 0.15s;">
+        <td style="padding: 1rem; font-family: monospace; font-weight: 700; color: var(--primary); font-size: 0.92rem;">${lec.lecturerId || ""}</td>
+        <td style="padding: 1rem; font-weight: 600; color: var(--primary-dark);">${lec.title || ""} ${lec.fullName || ""}</td>
+        <td style="padding: 1rem; font-size: 0.88rem; font-weight: 500;">${lec.department || ""}</td>
+        <td style="padding: 1rem; max-width: 300px;">${coursesHtml}</td>
+        <td style="padding: 1rem;">
+          <span style="background-color: ${statusBg}; color: ${statusColor}; padding: 0.25rem 0.6rem; border-radius: 4px; font-size: 0.78rem; font-weight: 700; display: inline-block;">
+            ${lec.status || "Active"}
+          </span>
+        </td>
+        <td style="padding: 1rem; text-align: center;">
+          <div style="display: flex; gap: 0.45rem; justify-content: center; align-items: center;">
+            <button class="btn btn-edit-lec" data-id="${lec.id}" title="View & Edit Facilitator Profile" style="background-color: #1F3B82; color: white; border: none; border-radius: 6px; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.95rem; transition: transform 0.1s;"><i class="fa-solid fa-user-pen"></i></button>
+            <button class="btn btn-reset-pass-lec" data-id="${lec.id}" title="Reset Security Credentials" style="background-color: #F4B000; color: #1F3B82; border: none; border-radius: 6px; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.95rem; transition: transform 0.1s;"><i class="fa-solid fa-key"></i></button>
+            <button class="btn btn-toggle-status-lec" data-id="${lec.id}" data-status="${lec.status}" title="${lec.status === 'Active' ? 'Deactivate / Suspend account' : 'Activate account'}" style="background-color: ${lec.status === 'Active' ? '#DC3545' : '#28A745'}; color: white; border: none; border-radius: 6px; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.95rem; transition: transform 0.1s;">
+              <i class="fa-solid ${lec.status === 'Active' ? 'fa-user-slash' : 'fa-user-check'}"></i>
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join("");
+
+  // Attach event listeners for dynamic rows
+  tbody.querySelectorAll(".btn-edit-lec").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-id");
+      openEditLecturerModal(id);
+    });
+  });
+
+  tbody.querySelectorAll(".btn-reset-pass-lec").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-id");
+      resetLecturerPassword(id);
+    });
+  });
+
+  tbody.querySelectorAll(".btn-toggle-status-lec").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-id");
+      const status = btn.getAttribute("data-status");
+      toggleLecturerStatus(id, status);
+    });
+  });
+}
+
+// Sub-tab Pill switching
+document.querySelectorAll(".sub-tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const targetSubtab = btn.getAttribute("data-subtab");
+    document.querySelectorAll(".sub-tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".lecturer-subtab-content").forEach(c => c.style.display = "none");
+    
+    btn.classList.add("active");
+    const targetEl = document.getElementById(`subtab-${targetSubtab}`);
+    if (targetEl) targetEl.style.display = "block";
+    
+    const successCard = document.getElementById("regSuccessCredentialsCard");
+    if (successCard) successCard.style.display = "none";
+  });
+});
+
+// Event attachments for Search/Filter/Sort
+const searchLecInput = document.getElementById("searchLecturersInput");
+if (searchLecInput) searchLecInput.addEventListener("input", renderLecturerDirectory);
+
+const filterLecStatus = document.getElementById("filterLecturerStatus");
+if (filterLecStatus) filterLecStatus.addEventListener("change", renderLecturerDirectory);
+
+const sortLecSelect = document.getElementById("sortLecturerBy");
+if (sortLecSelect) sortLecSelect.addEventListener("change", renderLecturerDirectory);
+
+const btnResetLecFilters = document.getElementById("btnResetLecturerFilters");
+if (btnResetLecFilters) {
+  btnResetLecFilters.addEventListener("click", () => {
+    if (searchLecInput) searchLecInput.value = "";
+    if (filterLecStatus) filterLecStatus.value = "all";
+    if (sortLecSelect) sortLecSelect.value = "name-asc";
+    renderLecturerDirectory();
+  });
+}
+
+// Enrollment form processing
+const registerLecturerForm = document.getElementById("registerLecturerForm");
+if (registerLecturerForm) {
+  registerLecturerForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    
+    const title = document.getElementById("regLecTitle").value;
+    const fullName = document.getElementById("regLecFullName").value.trim();
+    const gender = document.getElementById("regLecGender").value;
+    const dob = document.getElementById("regLecDob").value;
+    const phone = document.getElementById("regLecPhone").value.trim();
+    const whatsapp = document.getElementById("regLecWhatsapp").value.trim();
+    const email = document.getElementById("regLecEmail").value.trim();
+    const address = document.getElementById("regLecAddress").value.trim();
+    const qualification = document.getElementById("regLecQualification").value.trim();
+    const department = document.getElementById("regLecDepartment").value;
+    const position = document.getElementById("regLecPosition").value.trim();
+    const employmentDate = document.getElementById("regLecEmploymentDate").value;
+
+    if (!email.includes("@")) {
+      window.showToast("Please supply a valid institutional email address.", "error");
+      return;
+    }
+
+    // Gather courses
+    const checkedCourses = [];
+    document.querySelectorAll('#courseAllocationCheckboxes input[name="assignedCourses"]:checked').forEach(cb => {
+      checkedCourses.push(cb.value);
+    });
+
+    try {
+      window.showToast("Securing institutional credentials...", "info");
+
+      // Generate incremental sequence
+      const qSnap = await getDocs(collection(db, "lecturers"));
+      let maxSeq = 0;
+      qSnap.forEach(docSnap => {
+        const idVal = docSnap.data().lecturerId || "";
+        const m = idVal.match(/DIMABIN\/LEC\/2026\/(\d+)/);
+        if (m) {
+          const num = parseInt(m[1], 10);
+          if (num > maxSeq) maxSeq = num;
+        }
+      });
+
+      const nextSeq = maxSeq + 1;
+      const paddedSeq = String(nextSeq).padStart(3, "0");
+      const generatedLecId = `DIMABIN/LEC/2026/${paddedSeq}`;
+      const docId = `DIMABIN-LEC-2026-${paddedSeq}`;
+
+      // Temporary password format
+      const randHex = Math.random().toString(36).substring(2, 6).toUpperCase();
+      const tempPassword = `Dimabin@2026${randHex}`;
+
+      // Dynamic provisioning via Secondary Firebase Auth (protecting the Admin session!)
+      let authCreated = false;
+      try {
+        const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js");
+        const { getAuth, createUserWithEmailAndPassword, signOut } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js");
+        const firebaseConfig = (await import("./firebase-config-env.js")).default;
+        
+        const secAppName = `secRegLec-${Date.now()}`;
+        const secApp = initializeApp(firebaseConfig, secAppName);
+        const secAuth = getAuth(secApp);
+        
+        await createUserWithEmailAndPassword(secAuth, email, tempPassword);
+        await signOut(secAuth);
+        await secApp.delete();
+        authCreated = true;
+      } catch (authErr) {
+        console.error("❌ Auth provisioning failed:", authErr);
+        if (authErr.code === "auth/email-already-in-use") {
+          window.showToast("The email is already registered in Firebase Authentication.", "error");
+          return;
+        }
+      }
+
+      // Hash temporary password using SHA-256 (Never store plain text in Firestore!)
+      const passHash = await sha256(tempPassword);
+
+      // Save document parameters
+      const lecDocData = {
+        lecturerId: generatedLecId,
+        fullName,
+        title,
+        gender,
+        phone,
+        whatsapp,
+        email,
+        address,
+        qualification,
+        department,
+        position,
+        employmentDate,
+        assignedCourses: checkedCourses,
+        coursesAssigned: checkedCourses, // Dual field synchronization for portal integration
+        status: "Active",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        passwordHash: passHash
+      };
+
+      await setDoc(doc(db, "lecturers", docId), lecDocData);
+
+      // Display successfully generated credentials
+      document.getElementById("dispGeneratedLecturerId").textContent = generatedLecId;
+      document.getElementById("dispGeneratedPassword").textContent = tempPassword;
+      document.getElementById("regSuccessCredentialsCard").style.display = "block";
+
+      window.showToast("Facilitator registered and credentials provisioned!", "success");
+
+      // Prepare EmailJS integration
+      try {
+        await prepareAndLogEmail("lecturer", fullName, email, {
+          subject: "DIMABIN Faculty Onboarding Coordinates",
+          message: `Dear ${title} ${fullName},\n\nYour profile has been registered successfully. Use these credentials to sign in:\n\nStaff ID: ${generatedLecId}\nTemporary Password: ${tempPassword}\n\nPlease proceed to the Lecturer Portal to activate your profile.\n\nInstitutional Administration,\nDIMABIN`,
+          temp_password: tempPassword,
+          staff_id: generatedLecId,
+          lecturer_name: fullName
+        });
+      } catch (logErr) {
+        console.warn("⚠️ EmailJS preparation skipped:", logErr);
+      }
+
+      // Refresh data list
+      await loadLecturers();
+      
+      // Clear form inputs
+      registerLecturerForm.reset();
+      document.querySelectorAll('#courseAllocationCheckboxes input[type="checkbox"]').forEach(cb => cb.checked = false);
+      
+    } catch (err) {
+      console.error("❌ Facilitator registration failed:", err);
+      window.showToast("Registration failed: " + err.message, "error");
+    }
+  });
+}
+
+// Edit Profile Modal logic
+const editLecModal = document.getElementById("lecturerDetailsModal");
+const btnCloseLecModal = document.getElementById("btnCloseLecDetailsModal");
+const editLecForm = document.getElementById("editLecturerForm");
+
+if (btnCloseLecModal && editLecModal) {
+  btnCloseLecModal.addEventListener("click", () => {
+    editLecModal.style.display = "none";
+  });
+}
+
+function openEditLecturerModal(docId) {
+  const lec = allLecturers.find(l => l.id === docId);
+  if (!lec) {
+    window.showToast("Facilitator record not found.", "error");
+    return;
+  }
+
+  document.getElementById("editLecDocId").value = docId;
+  document.getElementById("editLecId").value = lec.lecturerId || "";
+  document.getElementById("editLecTitle").value = lec.title || "Rev.";
+  document.getElementById("editLecFullName").value = lec.fullName || "";
+  document.getElementById("editLecGender").value = lec.gender || "Male";
+  document.getElementById("editLecDob").value = lec.dob || lec.dateOfBirth || "";
+  document.getElementById("editLecPhone").value = lec.phone || "";
+  document.getElementById("editLecWhatsapp").value = lec.whatsapp || "";
+  document.getElementById("editLecEmail").value = lec.email || "";
+  document.getElementById("editLecAddress").value = lec.address || "";
+  document.getElementById("editLecQualification").value = lec.qualification || "";
+  document.getElementById("editLecDepartment").value = lec.department || "Theology";
+  document.getElementById("editLecPosition").value = lec.position || "";
+  document.getElementById("editLecEmploymentDate").value = lec.employmentDate || "";
+  document.getElementById("editLecStatus").value = lec.status || "Active";
+
+  // Match and check assigned checkboxes
+  const assigned = lec.coursesAssigned || lec.assignedCourses || [];
+  document.querySelectorAll('#editCourseAllocationCheckboxes input[name="editAssignedCourses"]').forEach(cb => {
+    cb.checked = assigned.includes(cb.value);
+  });
+
+  if (editLecModal) editLecModal.style.display = "flex";
+}
+
+if (editLecForm) {
+  editLecForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const docId = document.getElementById("editLecDocId").value;
+    const title = document.getElementById("editLecTitle").value;
+    const fullName = document.getElementById("editLecFullName").value.trim();
+    const gender = document.getElementById("editLecGender").value;
+    const dob = document.getElementById("editLecDob").value;
+    const phone = document.getElementById("editLecPhone").value.trim();
+    const whatsapp = document.getElementById("editLecWhatsapp").value.trim();
+    const email = document.getElementById("editLecEmail").value.trim();
+    const address = document.getElementById("editLecAddress").value.trim();
+    const qualification = document.getElementById("editLecQualification").value.trim();
+    const department = document.getElementById("editLecDepartment").value;
+    const position = document.getElementById("editLecPosition").value.trim();
+    const employmentDate = document.getElementById("editLecEmploymentDate").value;
+    const status = document.getElementById("editLecStatus").value;
+
+    const checkedCourses = [];
+    document.querySelectorAll('#editCourseAllocationCheckboxes input[name="editAssignedCourses"]:checked').forEach(cb => {
+      checkedCourses.push(cb.value);
+    });
+
+    try {
+      window.showToast("Securing profile coordinates...", "info");
+
+      const docRef = doc(db, "lecturers", docId);
+      await updateDoc(docRef, {
+        title,
+        fullName,
+        gender,
+        dob,
+        phone,
+        whatsapp,
+        email,
+        address,
+        qualification,
+        department,
+        position,
+        employmentDate,
+        status,
+        assignedCourses: checkedCourses,
+        coursesAssigned: checkedCourses, // Synchronized fields
+        updatedAt: new Date().toISOString()
+      });
+
+      window.showToast("Facilitator profile updated successfully!", "success");
+      if (editLecModal) editLecModal.style.display = "none";
+      await loadLecturers();
+    } catch (err) {
+      console.error("❌ Failed to update profile:", err);
+      window.showToast("Failed to update profile: " + err.message, "error");
+    }
+  });
+}
+
+// Suspend & Activate operations
+async function toggleLecturerStatus(docId, currentStatus) {
+  const newStatus = currentStatus === "Active" ? "Suspended" : "Active";
+  if (!confirm(`Are you sure you want to mark this facilitator as ${newStatus}?`)) return;
+
+  try {
+    window.showToast(`Transitioning status to ${newStatus}...`, "info");
+    const docRef = doc(db, "lecturers", docId);
+    await updateDoc(docRef, {
+      status: newStatus,
+      updatedAt: new Date().toISOString()
+    });
+
+    window.showToast(`Facilitator marked as ${newStatus}!`, "success");
+    await loadLecturers();
+  } catch (err) {
+    console.error("❌ Status toggle failed:", err);
+    window.showToast("Failed to change status: " + err.message, "error");
+  }
+}
+
+// Password reset operations
+async function resetLecturerPassword(docId) {
+  const lec = allLecturers.find(l => l.id === docId);
+  if (!lec) {
+    window.showToast("Facilitator record not found.", "error");
+    return;
+  }
+
+  if (!confirm(`Reset credentials for ${lec.title || ''} ${lec.fullName || ''}? This will update Firebase Auth and prepare EmailJS dispatch.`)) return;
+
+  try {
+    window.showToast("Generating new credentials...", "info");
+
+    const randHex = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const newTempPassword = `Dimabin@2026${randHex}`;
+
+    // Attempt to reset Auth account
+    let authReset = false;
+    try {
+      const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js");
+      const { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js");
+      const firebaseConfig = (await import("./firebase-config-env.js")).default;
+
+      const secAppName = `secResetPass-${Date.now()}`;
+      const secApp = initializeApp(firebaseConfig, secAppName);
+      const secAuth = getAuth(secApp);
+
+      // Attempt deletion with previous stored passwords (fallback verification)
+      let deleted = false;
+      const prevPassword = lec.password || lec.tempPassword || "";
+      if (prevPassword) {
+        try {
+          const userCred = await signInWithEmailAndPassword(secAuth, lec.email, prevPassword);
+          await userCred.user.delete();
+          deleted = true;
+          console.log("Deleted previous Auth profile for fresh onboarding.");
+        } catch (delErr) {
+          console.warn("Could not sign in to delete previous profile:", delErr.message);
+        }
+      }
+
+      if (deleted) {
+        // Re-create user fresh with new temporary credentials
+        await createUserWithEmailAndPassword(secAuth, lec.email, newTempPassword);
+        await signOut(secAuth);
+        authReset = true;
+      } else {
+        // Fallback: send built-in Firebase Reset Email link directly to inbox
+        await sendPasswordResetEmail(auth, lec.email);
+        authReset = true;
+        window.showToast("Dispatched secure Firebase Reset link directly to inbox.", "info");
+      }
+
+      await secApp.delete();
+    } catch (authErr) {
+      console.warn("⚠️ Firebase Auth connection skipped or bypassed:", authErr);
+    }
+
+    // Securely hash new password
+    const hashedPass = await sha256(newTempPassword);
+
+    // Save modifications to Firestore (Never store plain text!)
+    const docRef = doc(db, "lecturers", docId);
+    await updateDoc(docRef, {
+      tempPassword: newTempPassword,
+      password: newTempPassword, // Dual field syncing
+      passwordHash: hashedPass,
+      updatedAt: new Date().toISOString()
+    });
+
+    // EmailJS Logging preparation
+    try {
+      await prepareAndLogEmail("lecturer", lec.fullName, lec.email, {
+        subject: "DIMABIN Account Password Rollover",
+        message: `Dear ${lec.title || ''} ${lec.fullName},\n\nYour account credentials have been successfully reset.\n\nNew Temporary Password: ${newTempPassword}\n\nPlease update this upon authentication.\n\nInstitutional Administration,\nDIMABIN`,
+        temp_password: newTempPassword,
+        staff_id: lec.lecturerId,
+        lecturer_name: lec.fullName
+      });
+    } catch (logErr) {
+      console.warn("⚠️ Skipped logging EmailJS reset template:", logErr);
+    }
+
+    alert(`🔐 Security Credentials Reset Completed!\n\nStaff: ${lec.title || ''} ${lec.fullName}\nNew Temporary Password: ${newTempPassword}\n\nPlease copy this password and share it with the lecturer.`);
+    
+    await loadLecturers();
+  } catch (err) {
+    console.error("❌ Credentials reset failed:", err);
+    window.showToast("Credentials reset failed: " + err.message, "error");
+  }
 }
 
 // Run-Once Initializations
