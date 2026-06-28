@@ -1014,10 +1014,10 @@
 
           <!-- Future Compatibility Modules -->
           <div style="border-top: 1px solid rgba(255,255,255,0.1); margin: 0.5rem 0; padding-top: 0.5rem;">
-            <div style="font-size: 0.7rem; font-weight: 800; text-transform: uppercase; opacity: 0.5; padding-left: 1.25rem; margin-bottom: 0.25rem;">Future Integrations</div>
+            <div style="font-size: 0.7rem; font-weight: 800; text-transform: uppercase; opacity: 0.5; padding-left: 1.25rem; margin-bottom: 0.25rem;">CBT Engine</div>
             
-            <button class="sidebar-nav-btn" disabled style="opacity: 0.5; cursor: not-allowed; pointer-events: none;">
-              <i class="fa-solid fa-laptop-code"></i> CBT Questions <span style="font-size: 0.6rem; background-color: var(--accent); color: var(--primary-dark); padding: 0.1rem 0.4rem; border-radius: 4px; margin-left: auto;">Soon</span>
+            <button class="sidebar-nav-btn" data-tab="cbt-management">
+              <i class="fa-solid fa-laptop-code"></i> CBT Management
             </button>
             <button class="sidebar-nav-btn" disabled style="opacity: 0.5; cursor: not-allowed; pointer-events: none;">
               <i class="fa-solid fa-clipboard-user"></i> Attendance <span style="font-size: 0.6rem; background-color: var(--accent); color: var(--primary-dark); padding: 0.1rem 0.4rem; border-radius: 4px; margin-left: auto;">Soon</span>
@@ -1407,6 +1407,308 @@
                 <i class="fa-solid fa-key"></i> Commit Password Alteration
               </button>
             </form>
+          </div>
+        </div>
+
+        <!-- Tab 8: CBT Management -->
+        <div class="tab-content" id="tab-cbt-management" style="display: none;">
+          <div style="margin-bottom: 2rem;">
+            <h2 class="font-display" style="color: var(--primary); font-size: 2rem; margin-bottom: 0.5rem; font-weight: 800;">Computer-Based Test (CBT)</h2>
+            <p style="color: var(--text-muted);">Coordinate digital examinations, manage your question bank, configure tests, and analyze academic results.</p>
+          </div>
+
+          <!-- CBT Sub-tabs Pills -->
+          <div style="display: flex; gap: 0.75rem; border-bottom: 2px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem; overflow-x: auto;" class="no-print">
+            <button class="btn cbt-sub-tab-btn active" data-subtab="question-bank" style="background-color: #1F3B82; color: white; padding: 0.6rem 1.25rem; font-weight: 700; font-family: 'Poppins'; border-radius: 6px; border: none; font-size: 0.88rem; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;"><i class="fa-solid fa-database"></i> Question Bank</button>
+            <button class="btn cbt-sub-tab-btn" data-subtab="create-exam" style="background-color: transparent; color: var(--text-muted); padding: 0.6rem 1.25rem; font-weight: 700; font-family: 'Poppins'; border-radius: 6px; border: 1.5px solid var(--border-color); font-size: 0.88rem; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;"><i class="fa-solid fa-folder-plus"></i> Create Examination</button>
+            <button class="btn cbt-sub-tab-btn" data-subtab="scheduled-exams" style="background-color: transparent; color: var(--text-muted); padding: 0.6rem 1.25rem; font-weight: 700; font-family: 'Poppins'; border-radius: 6px; border: 1.5px solid var(--border-color); font-size: 0.88rem; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;"><i class="fa-solid fa-clock"></i> Scheduled Exams</button>
+            <button class="btn cbt-sub-tab-btn" data-subtab="results-stats" style="background-color: transparent; color: var(--text-muted); padding: 0.6rem 1.25rem; font-weight: 700; font-family: 'Poppins'; border-radius: 6px; border: 1.5px solid var(--border-color); font-size: 0.88rem; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;"><i class="fa-solid fa-chart-bar"></i> Results & Statistics</button>
+          </div>
+
+          <!-- SUB-TAB 1: QUESTION BANK -->
+          <div class="cbt-subtab-content" id="cbt-subtab-question-bank">
+            <div style="display: grid; grid-template-columns: 360px 1fr; gap: 2rem; align-items: start;">
+              <!-- Left Sidebar: Add/Edit Question Form -->
+              <div class="portal-support-card" style="background-color: var(--bg-white); padding: 1.5rem; border-radius: 6px; border: 1.5px solid var(--border-color);">
+                <h3 class="font-display" id="qFormTitle" style="color: var(--primary); font-size: 1.1rem; margin-top: 0; margin-bottom: 1.25rem; font-weight: 700; border-bottom: 1.5px solid var(--border-color); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;"><i class="fa-solid fa-circle-question" style="color: var(--accent);"></i> New Question</h3>
+                <form id="qBankForm">
+                  <input type="hidden" id="qId">
+                  <div class="form-group" style="margin-bottom: 0.75rem;">
+                    <label style="font-size: 0.72rem; font-weight: 700; color: var(--primary); text-transform: uppercase;">Course</label>
+                    <select id="qCourseSelect" class="form-control" style="width: 100%; padding: 0.5rem; font-family:'Poppins'; border-radius:4px; border: 1.5px solid var(--border-color);" required>
+                      <!-- populated dynamically with assigned courses -->
+                    </select>
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0.75rem; display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                    <div>
+                      <label style="font-size: 0.72rem; font-weight: 700; color: var(--primary); text-transform: uppercase;">Session</label>
+                      <input type="text" id="qSession" class="form-control" style="width: 100%; padding: 0.5rem; font-family:'Poppins'; border-radius:4px; border: 1.5px solid var(--border-color);" required>
+                    </div>
+                    <div>
+                      <label style="font-size: 0.72rem; font-weight: 700; color: var(--primary); text-transform: uppercase;">Semester</label>
+                      <select id="qSemester" class="form-control" style="width: 100%; padding: 0.5rem; font-family:'Poppins'; border-radius:4px; border: 1.5px solid var(--border-color);" required>
+                        <option value="First Semester">First Sem</option>
+                        <option value="Second Semester">Second Sem</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0.75rem;">
+                    <label style="font-size: 0.72rem; font-weight: 700; color: var(--primary); text-transform: uppercase;">Question Text</label>
+                    <textarea id="qText" rows="3" class="form-control" style="width: 100%; padding: 0.5rem; font-family:'Poppins'; border-radius:4px; border: 1.5px solid var(--border-color);" required></textarea>
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0.5rem;">
+                    <label style="font-size: 0.72rem; font-weight: 700; color: var(--primary); text-transform: uppercase;">Option A</label>
+                    <input type="text" id="qOptA" class="form-control" style="width: 100%; padding: 0.5rem; font-family:'Poppins'; border-radius:4px; border: 1.5px solid var(--border-color);" required>
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0.5rem;">
+                    <label style="font-size: 0.72rem; font-weight: 700; color: var(--primary); text-transform: uppercase;">Option B</label>
+                    <input type="text" id="qOptB" class="form-control" style="width: 100%; padding: 0.5rem; font-family:'Poppins'; border-radius:4px; border: 1.5px solid var(--border-color);" required>
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0.5rem;">
+                    <label style="font-size: 0.72rem; font-weight: 700; color: var(--primary); text-transform: uppercase;">Option C</label>
+                    <input type="text" id="qOptC" class="form-control" style="width: 100%; padding: 0.5rem; font-family:'Poppins'; border-radius:4px; border: 1.5px solid var(--border-color);" required>
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0.5rem;">
+                    <label style="font-size: 0.72rem; font-weight: 700; color: var(--primary); text-transform: uppercase;">Option D</label>
+                    <input type="text" id="qOptD" class="form-control" style="width: 100%; padding: 0.5rem; font-family:'Poppins'; border-radius:4px; border: 1.5px solid var(--border-color);" required>
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0.75rem; display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 0.5rem;">
+                    <div>
+                      <label style="font-size: 0.72rem; font-weight: 700; color: var(--primary); text-transform: uppercase;">Correct Answer</label>
+                      <select id="qCorrectAnswer" class="form-control" style="width: 100%; padding: 0.5rem; font-family:'Poppins'; border-radius:4px; border: 1.5px solid var(--border-color);" required>
+                        <option value="A">Option A</option>
+                        <option value="B">Option B</option>
+                        <option value="C">Option C</option>
+                        <option value="D">Option D</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style="font-size: 0.72rem; font-weight: 700; color: var(--primary); text-transform: uppercase;">Marks</label>
+                      <input type="number" id="qMarks" value="1" min="1" max="10" class="form-control" style="width: 100%; padding: 0.5rem; font-family:'Poppins'; border-radius:4px; border: 1.5px solid var(--border-color);" required>
+                    </div>
+                  </div>
+                  <div class="form-group" style="margin-bottom: 1.25rem;">
+                    <label style="font-size: 0.72rem; font-weight: 700; color: var(--primary); text-transform: uppercase;">Explanation (Optional)</label>
+                    <textarea id="qExplanation" rows="2" class="form-control" style="width: 100%; padding: 0.5rem; font-family:'Poppins'; border-radius:4px; border: 1.5px solid var(--border-color);"></textarea>
+                  </div>
+                  <div style="display: flex; gap: 0.5rem;">
+                    <button type="submit" class="btn btn-primary" title="Save Question" style="flex: 1; background-color: #1F3B82; color: white; border: none; padding: 0.75rem; border-radius: 4px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 0.5rem; cursor: pointer;"><i class="fa-solid fa-floppy-disk"></i></button>
+                    <button type="button" id="btnResetQForm" class="btn" title="Reset/Cancel" style="background-color: var(--bg-slate); color: var(--text-dark); border: 1.5px solid var(--border-color); padding: 0.75rem; border-radius: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer;"><i class="fa-solid fa-rotate-left"></i></button>
+                  </div>
+                </form>
+              </div>
+
+              <!-- Right Main Area: Existing Questions -->
+              <div style="background-color: var(--bg-white); padding: 1.5rem; border-radius: 6px; border: 1.5px solid var(--border-color);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; gap: 1rem; flex-wrap: wrap;">
+                  <h3 class="font-display" style="color: var(--primary); font-size: 1.15rem; font-weight: 700; margin: 0;">Syllabus Questions</h3>
+                  <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <select id="filterQCourse" style="padding: 0.5rem; border-radius: 4px; border: 1.5px solid var(--border-color); font-family: 'Poppins'; font-size: 0.8rem;">
+                      <option value="all">All My Courses</option>
+                    </select>
+                    <input type="text" id="searchQText" placeholder="Search questions..." style="padding: 0.5rem; border-radius: 4px; border: 1.5px solid var(--border-color); font-family: 'Poppins'; font-size: 0.8rem; width: 180px;">
+                  </div>
+                </div>
+                
+                <div style="overflow-x: auto;">
+                  <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
+                    <thead>
+                      <tr style="border-bottom: 2px solid var(--border-color); background-color: var(--bg-slate); color: var(--primary);">
+                        <th style="padding: 0.75rem; font-weight: 700;">Course</th>
+                        <th style="padding: 0.75rem; font-weight: 700;">Question Details</th>
+                        <th style="padding: 0.75rem; font-weight: 700; text-align: center;">Marks</th>
+                        <th style="padding: 0.75rem; font-weight: 700; text-align: center; width: 120px;">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="qBankTableBody">
+                      <tr><td colspan="4" style="text-align: center; padding: 2rem; color: var(--text-muted);">Loading question bank repository...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SUB-TAB 2: CREATE EXAMINATION -->
+          <div class="cbt-subtab-content" id="cbt-subtab-create-exam" style="display: none;">
+            <div style="background-color: var(--bg-white); border-radius: 6px; border: 1.5px solid var(--border-color); padding: 2rem; max-width: 800px; margin: 0 auto;">
+              <h3 class="font-display" style="color: var(--primary); font-size: 1.25rem; font-weight: 700; border-bottom: 1.5px solid var(--border-color); padding-bottom: 0.75rem; margin-top: 0; margin-bottom: 1.5rem;"><i class="fa-solid fa-file-signature" style="color: var(--accent);"></i> Configure Examination Parameters</h3>
+              <form id="createExamForm">
+                <input type="hidden" id="examId">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+                  <div class="form-group">
+                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase;">Target Course</label>
+                    <select id="examCourse" class="form-control" style="width: 100%; padding: 0.6rem; font-family:'Poppins'; border-radius:4px; border: 1.5px solid var(--border-color);" required>
+                      <!-- populated dynamically -->
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase;">Academic Session</label>
+                    <input type="text" id="examSession" class="form-control" style="width: 100%; padding: 0.6rem; font-family:'Poppins'; border-radius:4px; border: 1.5px solid var(--border-color);" required>
+                  </div>
+                  <div class="form-group">
+                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase;">Semester</label>
+                    <select id="examSemester" class="form-control" style="width: 100%; padding: 0.6rem; font-family:'Poppins'; border-radius:4px; border: 1.5px solid var(--border-color);" required>
+                      <option value="First Semester">First Semester</option>
+                      <option value="Second Semester">Second Semester</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 1.25rem;">
+                  <label style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase;">Examination Title</label>
+                  <input type="text" id="examTitle" placeholder="e.g., Mid-Semester Examination" class="form-control" style="width: 100%; padding: 0.6rem; font-family:'Poppins'; border-radius:4px; border: 1.5px solid var(--border-color);" required>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+                  <div class="form-group">
+                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase;">Duration (Minutes)</label>
+                    <input type="number" id="examDuration" value="60" min="5" max="300" class="form-control" style="width: 100%; padding: 0.6rem; font-family:'Poppins'; border-radius:4px; border: 1.5px solid var(--border-color);" required>
+                  </div>
+                  <div class="form-group">
+                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase;">Questions to Display</label>
+                    <input type="number" id="examNumQuestions" value="20" min="1" max="100" class="form-control" style="width: 100%; padding: 0.6rem; font-family:'Poppins'; border-radius:4px; border: 1.5px solid var(--border-color);" required>
+                    <span style="font-size: 0.65rem; color: var(--text-muted);">Must not exceed available questions in Question Bank for course.</span>
+                  </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                  <div class="form-group">
+                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase;">Opening Date & Time</label>
+                    <input type="datetime-local" id="examOpenDate" class="form-control" style="width: 100%; padding: 0.6rem; font-family:'Poppins'; border-radius:4px; border: 1.5px solid var(--border-color);" required>
+                  </div>
+                  <div class="form-group">
+                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase;">Closing Date & Time</label>
+                    <input type="datetime-local" id="examCloseDate" class="form-control" style="width: 100%; padding: 0.6rem; font-family:'Poppins'; border-radius:4px; border: 1.5px solid var(--border-color);" required>
+                  </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; background-color: var(--bg-slate); padding: 1rem; border-radius: 6px; border: 1px solid var(--border-color);">
+                  <div class="form-group">
+                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase;">Randomize Questions</label>
+                    <select id="examRandQuestions" class="form-control" style="width: 100%; padding: 0.5rem; font-family:'Poppins'; border-radius:4px; border: 1px solid var(--border-color);">
+                      <option value="Yes">Yes</option>
+                      <option value="No">No</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase;">Randomize Options</label>
+                    <select id="examRandOptions" class="form-control" style="width: 100%; padding: 0.5rem; font-family:'Poppins'; border-radius:4px; border: 1px solid var(--border-color);">
+                      <option value="Yes">Yes</option>
+                      <option value="No">No</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase;">Show Result Instantly</label>
+                    <select id="examShowResult" class="form-control" style="width: 100%; padding: 0.5rem; font-family:'Poppins'; border-radius:4px; border: 1px solid var(--border-color);">
+                      <option value="Yes">Yes</option>
+                      <option value="No">No</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 1.5rem;">
+                  <label style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase;">Initial Status</label>
+                  <select id="examStatus" class="form-control" style="width: 100%; padding: 0.6rem; font-family:'Poppins'; border-radius:4px; border: 1.5px solid var(--border-color);" required>
+                    <option value="Draft">Draft (Hidden from Students)</option>
+                    <option value="Published">Published (Scheduled for Students)</option>
+                    <option value="Closed">Closed</option>
+                  </select>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+                  <button type="submit" class="btn btn-primary" title="Save Examination Configuration" style="background-color: #1F3B82; color: white; border: none; padding: 0.85rem 2rem; border-radius: 6px; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; cursor: pointer;"><i class="fa-solid fa-floppy-disk"></i> Complete Configuration</button>
+                  <button type="button" id="btnCancelExamForm" class="btn" title="Cancel/Reset" style="background-color: transparent; color: var(--text-muted); border: 1.5px solid var(--border-color); padding: 0.85rem 1.25rem; border-radius: 6px; font-weight: 600; cursor: pointer;">Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- SUB-TAB 3: SCHEDULED EXAMINATIONS -->
+          <div class="cbt-subtab-content" id="cbt-subtab-scheduled-exams" style="display: none;">
+            <div style="background-color: var(--bg-white); padding: 2rem; border-radius: 6px; border: 1.5px solid var(--border-color);">
+              <h3 class="font-display" style="color: var(--primary); font-size: 1.25rem; font-weight: 700; margin-top: 0; margin-bottom: 1.5rem;"><i class="fa-solid fa-calendar-check" style="color: var(--accent);"></i> Scheduled Assessment Registry</h3>
+              <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
+                  <thead>
+                    <tr style="border-bottom: 2px solid var(--border-color); background-color: var(--bg-slate); color: var(--primary);">
+                      <th style="padding: 0.75rem; font-weight: 700;">Course</th>
+                      <th style="padding: 0.75rem; font-weight: 700;">Exam Title</th>
+                      <th style="padding: 0.75rem; font-weight: 700;">Span Schedule</th>
+                      <th style="padding: 0.75rem; font-weight: 700; text-align: center;">Duration</th>
+                      <th style="padding: 0.75rem; font-weight: 700; text-align: center;">Questions</th>
+                      <th style="padding: 0.75rem; font-weight: 700; text-align: center;">Status</th>
+                      <th style="padding: 0.75rem; font-weight: 700; text-align: center; width: 150px;">Operations</th>
+                    </tr>
+                  </thead>
+                  <tbody id="scheduledExamsTableBody">
+                    <tr><td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-muted);">Loading assessments registry...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- SUB-TAB 4: RESULTS & STATISTICS -->
+          <div class="cbt-subtab-content" id="cbt-subtab-results-stats" style="display: none;">
+            <!-- Selection and stats -->
+            <div style="background-color: var(--bg-white); border-radius: 6px; border: 1.5px solid var(--border-color); padding: 1.5rem; margin-bottom: 1.5rem;">
+              <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap;">
+                <label style="font-weight: 700; color: var(--primary); font-family: 'Poppins';">Select Examination:</label>
+                <select id="resultsExamSelect" style="padding: 0.6rem; border-radius: 4px; border: 1.5px solid var(--border-color); font-family: 'Poppins'; font-size: 0.9rem; flex: 1; max-width: 400px;">
+                  <option value="">-- Choose Examination --</option>
+                </select>
+                <button id="btnExportCbtResults" class="btn" title="Export to CSV" style="background-color: #28A745; color: white; border: none; padding: 0.6rem 1.25rem; border-radius: 4px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;" disabled><i class="fa-solid fa-file-excel"></i> Export CSV</button>
+              </div>
+
+              <!-- Stats Grid -->
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;" id="resultsStatsContainer">
+                <div style="background-color: var(--bg-slate); border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem; text-align: center;">
+                  <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.25rem;">Total Candidates</div>
+                  <div id="statCbtTotalStudents" style="font-size: 1.5rem; font-weight: 800; color: var(--primary);">0</div>
+                </div>
+                <div style="background-color: var(--bg-slate); border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem; text-align: center;">
+                  <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.25rem;">Average Score</div>
+                  <div id="statCbtAvgScore" style="font-size: 1.5rem; font-weight: 800; color: var(--primary);">0%</div>
+                </div>
+                <div style="background-color: var(--bg-slate); border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem; text-align: center;">
+                  <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.25rem;">Highest / Lowest</div>
+                  <div id="statCbtHighLow" style="font-size: 1.2rem; font-weight: 800; color: var(--primary);">0 / 0</div>
+                </div>
+                <div style="background-color: var(--bg-slate); border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem; text-align: center;">
+                  <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.25rem;">Pass Rate</div>
+                  <div id="statCbtPassRate" style="font-size: 1.5rem; font-weight: 800; color: #28A745;">0%</div>
+                </div>
+                <div style="background-color: var(--bg-slate); border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem; text-align: center;">
+                  <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.25rem;">Fail Rate</div>
+                  <div id="statCbtFailRate" style="font-size: 1.5rem; font-weight: 800; color: #DC3545;">0%</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Student Results List -->
+            <div style="background-color: var(--bg-white); border-radius: 6px; border: 1.5px solid var(--border-color); padding: 1.5rem;">
+              <h4 class="font-display" style="color: var(--primary); font-size: 1.1rem; font-weight: 700; margin-top: 0; margin-bottom: 1rem;">Student Result Coordinates</h4>
+              <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
+                  <thead>
+                    <tr style="border-bottom: 2px solid var(--border-color); background-color: var(--bg-slate); color: var(--primary);">
+                      <th style="padding: 0.75rem; font-weight: 700;">Student ID</th>
+                      <th style="padding: 0.75rem; font-weight: 700;">Full Name</th>
+                      <th style="padding: 0.75rem; font-weight: 700;">Matric Number</th>
+                      <th style="padding: 0.75rem; font-weight: 700; text-align: center;">Score</th>
+                      <th style="padding: 0.75rem; font-weight: 700; text-align: center;">Percentage</th>
+                      <th style="padding: 0.75rem; font-weight: 700; text-align: center;">Grade</th>
+                      <th style="padding: 0.75rem; font-weight: 700; text-align: center;">Standing</th>
+                      <th style="padding: 0.75rem; font-weight: 700; text-align: center;">Completed At</th>
+                    </tr>
+                  </thead>
+                  <tbody id="cbtResultsTableBody">
+                    <tr><td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-muted);">Please select an examination from the dropdown above.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
 

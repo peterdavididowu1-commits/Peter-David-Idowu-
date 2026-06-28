@@ -269,6 +269,11 @@ navButtons.forEach(btn => {
     // Show selected tab content
     const selectedTab = document.getElementById(`tab-${tabId}`);
     if (selectedTab) selectedTab.classList.add("active");
+
+    // Load CBT specific data
+    if (tabId === "cbt") {
+      renderStudentCbtDashboard();
+    }
   });
 });
 
@@ -937,3 +942,686 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
   }
 });
+
+// ==========================================
+// STUDENT COMPUTER-BASED TEST (CBT) PORTAL
+// ==========================================
+
+let studentCbtExamsList = [];
+let activeCbtExam = null;
+let activeCbtQuestions = [];
+let currentQuestionIndex = 0;
+let studentAnswers = {};
+let flaggedQuestions = new Set();
+let cbtTimerInterval = null;
+let cbtSecondsLeft = 0;
+
+// Entrance / Tab Render handler
+async function renderStudentCbtDashboard() {
+  const container = document.getElementById("studentCbtExamsContainer");
+  if (!container) return;
+
+  if (!currentStudentDoc) {
+    container.innerHTML = `<div style="text-align: center; padding: 2.5rem; color: var(--text-muted);"><i class="fa-solid fa-triangle-exclamation" style="font-size: 2rem; color: var(--danger-color);"></i> Please authenticate first to view assessments.</div>`;
+    return;
+  }
+
+  container.innerHTML = `
+    <div style="text-align: center; padding: 3rem; color: var(--text-muted);">
+      <i class="fa-solid fa-spinner fa-spin" style="font-size: 2.5rem; color: var(--primary); margin-bottom: 1rem;"></i>
+      <p style="font-weight: 600;">Mapping curriculum course coordinates and checking scheduled CBT schedules...</p>
+    </div>
+  `;
+
+  try {
+    // 1. Fetch student's course registration slip for the current session/semester coordinates
+    const regDocId = `${currentStudentDoc.studentId.replace(/\//g, "-")}_${timelineSettings.session.replace(/\//g, "-")}`;
+    const regSnap = await getDoc(doc(db, "registrations", regDocId));
+
+    if (!regSnap.exists()) {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 3.5rem; background: white; border: 1.5px solid var(--border-color); border-radius: var(--border-radius-lg); max-width: 550px; margin: 2rem auto;">
+          <i class="fa-solid fa-file-signature" style="font-size: 4rem; color: var(--accent); margin-bottom: 1.5rem;"></i>
+          <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--primary-dark); margin-bottom: 0.5rem;">Course Registration Required</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.6; margin-bottom: 1.5rem;">You have not completed your official Course Registration slip for session <strong>${timelineSettings.session}</strong>, <strong>${timelineSettings.semester}</strong> yet.</p>
+          <button class="btn" onclick="const btn = document.querySelector('.sidebar-nav-btn[data-tab=\\'courses\\']'); if(btn) btn.click();" style="background-color: var(--primary); color: white;"><i class="fa-solid fa-pen-to-square"></i> Go to Course Registration</button>
+        </div>
+      `;
+      return;
+    }
+
+    const regData = regSnap.data();
+    const registeredCourses = regData.registeredCourses || [];
+
+    if (registeredCourses.length === 0) {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+          <i class="fa-solid fa-triangle-exclamation" style="font-size: 2.5rem; margin-bottom: 1rem;"></i>
+          <p>No courses registered on your approved Course Slip. Please register courses first.</p>
+        </div>
+      `;
+      return;
+    }
+
+    // 2. Query all scheduled CBT examinations matching current session, semester, and published status
+    const examSnap = await getDocs(query(
+      collection(db, "examinations"), 
+      where("academicSession", "==", timelineSettings.session),
+      where("semester", "==", timelineSettings.semester)
+    ));
+
+    const rawExamsList = examSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    // Filter down only to exams that match the student's registered courses, and are Published or Closed
+    studentCbtExamsList = rawExamsList.filter(ex => registeredCourses.includes(ex.courseCode) && (ex.status === "Published" || ex.status === "Closed"));
+
+    if (studentCbtExamsList.length === 0) {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 4rem 2rem; color: var(--text-muted); background: white; border-radius: var(--border-radius-lg); border: 1.5px solid var(--border-color);">
+          <i class="fa-solid fa-calendar-xmark" style="font-size: 3.5rem; opacity: 0.3; display: block; margin-bottom: 1rem; color: var(--primary);"></i>
+          <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--primary-dark); margin-bottom: 0.25rem;">No CBT Assessments Scheduled</h3>
+          <p style="font-size: 0.88rem; max-width: 420px; margin: 0 auto; line-height: 1.5;">There are no active or scheduled Computer-Based Tests configured for your registered course coordinates in this term.</p>
+        </div>
+      `;
+      return;
+    }
+
+    // 3. Render matching scheduled exams list
+    let html = "";
+    
+    for (const ex of studentCbtExamsList) {
+      // Check if student has already completed this assessment
+      const resDocId = `${currentStudentDoc.studentId.replace(/\//g, "-")}_${ex.id}`;
+      const resSnap = await getDoc(doc(db, "examinationResults", resDocId));
+      const hasCompleted = resSnap.exists();
+      let completedData = hasCompleted ? resSnap.data() : null;
+
+      // Determine active status based on open/close date coordinates
+      const now = new Date();
+      const startDate = new Date(ex.startDate);
+      const endDate = new Date(ex.endDate);
+
+      const isUpcoming = now < startDate;
+      const isPast = now > endDate || ex.status === "Closed";
+      const isOpen = !isUpcoming && !isPast && ex.status === "Published";
+
+      let statusBadge = "";
+      let actionButtonHtml = "";
+
+      if (hasCompleted) {
+        statusBadge = `<span class="status-badge cleared" style="background-color: rgba(40,167,69,0.1); color: #28a745; font-weight: 700;"><i class="fa-solid fa-circle-check"></i> COMPLETED</span>`;
+        
+        let scoreDetails = "";
+        if (ex.showResultImmediately) {
+          scoreDetails = `<div style="font-size: 0.82rem; color: var(--text-muted); margin-top: 0.5rem;">Grade Scored: <strong>${completedData.score} / ${completedData.totalQuestions} (${completedData.percentage}%) - Grade [${completedData.grade}]</strong></div>`;
+        } else {
+          scoreDetails = `<div style="font-size: 0.82rem; color: var(--text-muted); margin-top: 0.5rem; font-style: italic;">Grade: Logged for faculty review.</div>`;
+        }
+
+        actionButtonHtml = `
+          <div style="text-align: right;">
+            ${statusBadge}
+            ${scoreDetails}
+          </div>
+        `;
+      } else if (isUpcoming) {
+        statusBadge = `<span class="status-badge pending" style="background-color: rgba(244,176,0,0.1); color: #F4B000; font-weight: 700;"><i class="fa-solid fa-clock"></i> UPCOMING</span>`;
+        actionButtonHtml = `
+          <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 0.35rem;">
+            ${statusBadge}
+            <div style="font-size: 0.72rem; color: var(--text-muted);">Starts: ${new Date(ex.startDate).toLocaleString()}</div>
+            <button class="btn" disabled style="opacity: 0.5; background-color: var(--bg-slate); color: var(--text-muted); cursor: not-allowed; border: 1px solid var(--border-color); font-size: 0.8rem; padding: 0.4rem 0.85rem;"><i class="fa-solid fa-lock"></i> Locked</button>
+          </div>
+        `;
+      } else if (isPast) {
+        statusBadge = `<span class="status-badge" style="background-color: rgba(220,53,69,0.1); color: #dc3545; font-weight: 700;"><i class="fa-solid fa-circle-xmark"></i> CLOSED</span>`;
+        actionButtonHtml = `
+          <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 0.35rem;">
+            ${statusBadge}
+            <div style="font-size: 0.72rem; color: var(--text-muted);">Ended: ${new Date(ex.endDate).toLocaleString()}</div>
+            <button class="btn" disabled style="opacity: 0.5; background-color: var(--bg-slate); color: var(--text-muted); cursor: not-allowed; border: 1px solid var(--border-color); font-size: 0.8rem; padding: 0.4rem 0.85rem;">Missed</button>
+          </div>
+        `;
+      } else if (isOpen) {
+        statusBadge = `<span class="status-badge cleared" style="background-color: rgba(40,167,69,0.1); color: #28a745; font-weight: 700; animation: blink 1.5s infinite;"><i class="fa-solid fa-circle-dot"></i> OPEN & ACTIVE</span>`;
+        actionButtonHtml = `
+          <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 0.35rem;">
+            ${statusBadge}
+            <div style="font-size: 0.72rem; color: var(--text-muted);">Deadline: ${new Date(ex.endDate).toLocaleString()}</div>
+            <button class="btn btn-start-cbt-exam" data-id="${ex.id}" style="background-color: var(--primary); color: white; font-weight: 700; font-size: 0.85rem; padding: 0.45rem 1rem;"><i class="fa-solid fa-play"></i> Start Assessment</button>
+          </div>
+        `;
+      }
+
+      html += `
+        <div class="portal-card" style="padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; gap: 1.5rem; border-left: 4px solid ${hasCompleted ? '#28a745' : (isOpen ? 'var(--primary)' : 'var(--border-color)')};">
+          <div style="flex-grow: 1;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem;">
+              <span style="font-size: 0.75rem; font-weight: 800; color: var(--primary); background-color: var(--bg-slate); padding: 0.2rem 0.5rem; border-radius: 4px;">${ex.courseCode}</span>
+              <span style="font-size: 0.72rem; color: var(--text-muted);"><i class="fa-solid fa-hourglass-half"></i> ${ex.duration} Mins</span>
+              <span style="font-size: 0.72rem; color: var(--text-muted);"><i class="fa-solid fa-circle-question"></i> ${ex.numQuestions} Questions</span>
+            </div>
+            <h3 style="font-size: 1.05rem; font-weight: 700; color: var(--primary-dark); margin: 0 0 0.25rem 0;">${escapeHtml(ex.title)}</h3>
+            <div style="font-size: 0.75rem; color: var(--text-muted);"><i class="fa-solid fa-calendar"></i> Period: ${new Date(ex.startDate).toLocaleDateString()} - ${new Date(ex.endDate).toLocaleDateString()}</div>
+          </div>
+          <div style="min-width: 160px; display: flex; justify-content: flex-end;">
+            ${actionButtonHtml}
+          </div>
+        </div>
+      `;
+    }
+
+    container.innerHTML = html;
+
+    // Bind Start Exam button triggers
+    document.querySelectorAll(".btn-start-cbt-exam").forEach(btn => {
+      btn.addEventListener("click", () => {
+        openExamInstructionsModal(btn.getAttribute("data-id"));
+      });
+    });
+
+  } catch (err) {
+    console.error("Render student CBT error:", err);
+    container.innerHTML = `<div style="text-align: center; padding: 2.5rem; color: var(--danger-color);"><i class="fa-solid fa-triangle-exclamation" style="font-size: 2rem;"></i> Fetch failed: ${err.message}</div>`;
+  }
+}
+
+// Open Instructions Modal prior to launching full-screen exam loop
+function openExamInstructionsModal(examId) {
+  const exam = studentCbtExamsList.find(e => e.id === examId);
+  if (!exam) return;
+
+  activeCbtExam = exam;
+
+  document.getElementById("cbtModalTitle").textContent = exam.title;
+  document.getElementById("cbtModalCourseCode").textContent = exam.courseCode;
+  document.getElementById("cbtModalDuration").textContent = `${exam.duration} minutes`;
+  document.getElementById("cbtModalQuestions").textContent = `${exam.numQuestions} Multiple-Choice Questions`;
+
+  const modal = document.getElementById("cbtInstructionsModal");
+  if (modal) modal.style.display = "flex";
+}
+
+// Bind Modal controls
+document.getElementById("btnCbtCloseModal")?.addEventListener("click", () => {
+  const modal = document.getElementById("cbtInstructionsModal");
+  if (modal) modal.style.display = "none";
+  activeCbtExam = null;
+});
+
+document.getElementById("btnCbtConfirmStart")?.addEventListener("click", async () => {
+  const modal = document.getElementById("cbtInstructionsModal");
+  if (modal) modal.style.display = "none";
+
+  if (activeCbtExam) {
+    await initializeActiveExam();
+  }
+});
+
+// Fetch and load questions, then launch full-screen focused interface
+async function initializeActiveExam() {
+  const container = document.getElementById("studentCbtExamsContainer");
+  if (!container || !activeCbtExam) return;
+
+  window.showToast("Cataloging test questions from cloud bank...", "info");
+
+  try {
+    // 1. Fetch questions matching current exam criteria
+    const qSnap = await getDocs(query(
+      collection(db, "questionBank"),
+      where("courseCode", "==", activeCbtExam.courseCode),
+      where("academicSession", "==", activeCbtExam.academicSession),
+      where("semester", "==", activeCbtExam.semester)
+    ));
+
+    const rawQuestions = qSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    if (rawQuestions.length < activeCbtExam.numQuestions) {
+      alert(`⚠️ Course Syllabus Question Deficit!\n\nThe examination demands ${activeCbtExam.numQuestions} questions, but only ${rawQuestions.length} questions exist in the course question bank.\n\nPlease contact your course lecturer or coordinator.`);
+      return;
+    }
+
+    // 2. Select and configure active questions subset
+    let chosenQuestions = [...rawQuestions];
+    if (activeCbtExam.randomizeQuestions) {
+      shuffleCbtArray(chosenQuestions);
+    }
+    activeCbtQuestions = chosenQuestions.slice(0, activeCbtExam.numQuestions);
+
+    // 3. Setup temporary local answer cache if exists
+    studentAnswers = {};
+    flaggedQuestions.clear();
+    const localCache = localStorage.getItem(`cbt_temp_answers_${activeCbtExam.id}`);
+    if (localCache) {
+      try {
+        studentAnswers = JSON.parse(localCache);
+      } catch (e) {
+        studentAnswers = {};
+      }
+    }
+
+    currentQuestionIndex = 0;
+
+    // 4. Set headers
+    document.getElementById("activeExamCourseBadge").textContent = activeCbtExam.courseCode;
+    document.getElementById("activeExamTitle").textContent = activeCbtExam.title;
+
+    // 5. Setup Exam Countdown Timer
+    cbtSecondsLeft = activeCbtExam.duration * 60;
+    startCbtTimer();
+
+    // 6. Enter Focus-Oriented full-screen layout (Hiding headers and side navigation)
+    toggleCbtFocusLayout(true);
+
+    // 7. Render initial question index and matrix grid
+    renderCbtQuestionAndChoices();
+    renderCbtMatrixGrid();
+
+  } catch (err) {
+    console.error("Initialize exam error:", err);
+    window.showToast("Failed to compile examination data: " + err.message, "error");
+  }
+}
+
+// Handles fullscreen layout switching to maximize focus
+function toggleCbtFocusLayout(isFocusOn) {
+  const sidebar = document.querySelector(".portal-sidebar");
+  const header = document.querySelector(".portal-header");
+  const cbtDashboard = document.getElementById("cbtDashboardView");
+  const cbtActiveScreen = document.getElementById("cbtActiveExamScreen");
+
+  if (isFocusOn) {
+    if (sidebar) sidebar.style.display = "none";
+    if (header) header.style.display = "none";
+    if (cbtDashboard) cbtDashboard.style.display = "none";
+    if (cbtActiveScreen) cbtActiveScreen.style.display = "block";
+    
+    // Set layout margin padding to fit screen
+    const mainArea = document.querySelector(".portal-main");
+    if (mainArea) {
+      mainArea.style.marginLeft = "0";
+      mainArea.style.padding = "1rem";
+    }
+  } else {
+    if (sidebar) sidebar.style.display = "block";
+    if (header) header.style.display = "flex";
+    if (cbtDashboard) cbtDashboard.style.display = "block";
+    if (cbtActiveScreen) cbtActiveScreen.style.display = "none";
+
+    const mainArea = document.querySelector(".portal-main");
+    if (mainArea) {
+      mainArea.style.marginLeft = ""; // reset to CSS stylesheet default
+      mainArea.style.padding = "";
+    }
+  }
+}
+
+// Timer management
+function startCbtTimer() {
+  if (cbtTimerInterval) clearInterval(cbtTimerInterval);
+  updateCbtTimerDisplay();
+
+  cbtTimerInterval = setInterval(() => {
+    cbtSecondsLeft--;
+    updateCbtTimerDisplay();
+
+    // Warning at 5 minutes
+    if (cbtSecondsLeft === 300) {
+      alert("⚠️ Warning: Only 5 minutes remaining on your timer!");
+    }
+
+    if (cbtSecondsLeft <= 0) {
+      clearInterval(cbtTimerInterval);
+      alert("⏱️ Time is up! Your responses are being submitted automatically.");
+      submitExamination(true);
+    }
+  }, 1000);
+}
+
+function updateCbtTimerDisplay() {
+  const timerBox = document.getElementById("cbtExamTimer");
+  if (!timerBox) return;
+
+  const h = Math.floor(cbtSecondsLeft / 3600);
+  const m = Math.floor((cbtSecondsLeft % 3600) / 60);
+  const s = cbtSecondsLeft % 60;
+
+  const formatted = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  timerBox.textContent = formatted;
+
+  // Add red alert formatting if less than 2 minutes left
+  if (cbtSecondsLeft < 120) {
+    timerBox.style.color = "#DC3545";
+    timerBox.style.animation = "blink 1s infinite";
+  } else {
+    timerBox.style.color = "var(--accent)";
+    timerBox.style.animation = "none";
+  }
+}
+
+// Render active question and options
+function renderCbtQuestionAndChoices() {
+  if (activeCbtQuestions.length === 0) return;
+
+  const q = activeCbtQuestions[currentQuestionIndex];
+  
+  // Update index tracking headers
+  document.getElementById("activeQuestionIndexText").textContent = `Question ${currentQuestionIndex + 1} of ${activeCbtQuestions.length}`;
+  document.getElementById("activeQuestionMarksText").textContent = `${q.marks || 1} Marks`;
+  document.getElementById("activeQuestionText").textContent = q.question;
+
+  // Compile options array (supporting dynamic option shuffling)
+  let choices = [
+    { key: "A", text: q.optionA },
+    { key: "B", text: q.optionB },
+    { key: "C", text: q.optionC },
+    { key: "D", text: q.optionD }
+  ];
+
+  if (activeCbtExam.randomizeOptions) {
+    shuffleCbtArray(choices);
+  }
+
+  const container = document.getElementById("cbtOptionsContainer");
+  if (!container) return;
+
+  const currentSelection = studentAnswers[q.id];
+
+  container.innerHTML = choices.map(opt => {
+    const isChecked = currentSelection === opt.key;
+    return `
+      <label class="cbt-option-card ${isChecked ? 'active' : ''}" style="display: flex; align-items: center; gap: 1rem; padding: 1rem 1.25rem; border: 1.5px solid ${isChecked ? 'var(--primary)' : 'var(--border-color)'}; background-color: ${isChecked ? 'rgba(31,59,130,0.04)' : 'transparent'}; border-radius: var(--border-radius-md); cursor: pointer; transition: all 0.2s;">
+        <input type="radio" name="cbt_answer" value="${opt.key}" ${isChecked ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: var(--primary);">
+        <span style="font-weight: 700; color: ${isChecked ? 'white' : 'var(--primary)'}; font-size: 1rem; background-color: ${isChecked ? 'var(--primary)' : 'var(--bg-slate)'}; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%;">${opt.key}</span>
+        <span style="font-size: 0.95rem; font-weight: 500; color: var(--text-dark);">${escapeHtml(opt.text)}</span>
+      </label>
+    `;
+  }).join("");
+
+  // Bind choice listeners
+  const inputs = container.querySelectorAll('input[name="cbt_answer"]');
+  inputs.forEach(input => {
+    input.addEventListener("change", (e) => {
+      const val = e.target.value;
+      studentAnswers[q.id] = val;
+      
+      // Save local progress cache
+      localStorage.setItem(`cbt_temp_answers_${activeCbtExam.id}`, JSON.stringify(studentAnswers));
+
+      // Style cards
+      container.querySelectorAll(".cbt-option-card").forEach(lbl => {
+        lbl.style.border = "1.5px solid var(--border-color)";
+        lbl.style.backgroundColor = "transparent";
+        lbl.classList.remove("active");
+        const badge = lbl.querySelector("span:nth-of-type(1)");
+        badge.style.backgroundColor = "var(--bg-slate)";
+        badge.style.color = "var(--primary)";
+      });
+
+      const selectedLabel = e.target.closest(".cbt-option-card");
+      if (selectedLabel) {
+        selectedLabel.style.border = "1.5px solid var(--primary)";
+        selectedLabel.style.backgroundColor = "rgba(31,59,130,0.04)";
+        selectedLabel.classList.add("active");
+        const badge = selectedLabel.querySelector("span:nth-of-type(1)");
+        badge.style.backgroundColor = "var(--primary)";
+        badge.style.color = "white";
+      }
+
+      // Re-render indices
+      renderCbtMatrixGrid();
+    });
+  });
+
+  // Enable/Disable prev/next button keys based on boundaries
+  document.getElementById("btnCbtPrev").disabled = currentQuestionIndex === 0;
+  document.getElementById("btnCbtPrev").style.opacity = currentQuestionIndex === 0 ? "0.4" : "1";
+  
+  const isLast = currentQuestionIndex === activeCbtQuestions.length - 1;
+  document.getElementById("btnCbtNext").innerHTML = isLast ? `Finish <i class="fa-solid fa-flag-checkered"></i>` : `Next <i class="fa-solid fa-circle-arrow-right"></i>`;
+}
+
+// Render matrix navigation elements
+function renderCbtMatrixGrid() {
+  const grid = document.getElementById("cbtMatrixGrid");
+  if (!grid) return;
+
+  grid.innerHTML = activeCbtQuestions.map((q, idx) => {
+    const isAnswered = !!studentAnswers[q.id];
+    const isFlagged = flaggedQuestions.has(idx);
+    const isCurrent = idx === currentQuestionIndex;
+
+    let bgColor = "var(--bg-slate)";
+    let textColor = "var(--text-dark)";
+    let borderColor = "var(--border-color)";
+
+    if (isAnswered) {
+      bgColor = "var(--primary)";
+      textColor = "white";
+      borderColor = "var(--primary)";
+    }
+    if (isFlagged) {
+      bgColor = "#F4B000";
+      textColor = "var(--primary-dark)";
+      borderColor = "#F4B000";
+    }
+    if (isCurrent) {
+      borderColor = "var(--accent)";
+      // Add visual border outline
+    }
+
+    return `
+      <button class="btn" data-idx="${idx}" style="background-color: ${bgColor}; color: ${textColor}; border: 2.5px solid ${borderColor}; height: 38px; width: 38px; padding: 0; font-weight: 800; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.82rem; cursor: pointer; transition: all 0.15s; outline: ${isCurrent ? '3px solid var(--accent)' : 'none'};">
+        ${idx + 1}
+      </button>
+    `;
+  }).join("");
+
+  // Bind index buttons
+  grid.querySelectorAll("button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const idx = parseInt(btn.getAttribute("data-idx"));
+      jumpToQuestion(idx);
+    });
+  });
+}
+
+function jumpToQuestion(idx) {
+  if (idx < 0 || idx >= activeCbtQuestions.length) return;
+  currentQuestionIndex = idx;
+  renderCbtQuestionAndChoices();
+  renderCbtMatrixGrid();
+}
+
+// Bind navigation keys
+document.getElementById("btnCbtPrev")?.addEventListener("click", () => {
+  if (currentQuestionIndex > 0) {
+    jumpToQuestion(currentQuestionIndex - 1);
+  }
+});
+
+document.getElementById("btnCbtNext")?.addEventListener("click", () => {
+  if (currentQuestionIndex < activeCbtQuestions.length - 1) {
+    jumpToQuestion(currentQuestionIndex + 1);
+  } else {
+    // Last question - trigger final submission confirmation check
+    triggerFinalSubmissionRequest();
+  }
+});
+
+document.getElementById("btnCbtFlag")?.addEventListener("click", () => {
+  if (flaggedQuestions.has(currentQuestionIndex)) {
+    flaggedQuestions.delete(currentQuestionIndex);
+    window.showToast("Question unflagged.", "info");
+  } else {
+    flaggedQuestions.add(currentQuestionIndex);
+    window.showToast("Question flagged for review.", "warning");
+  }
+  renderCbtMatrixGrid();
+});
+
+// Final Submit Request Triggers
+document.getElementById("btnCbtSubmitExam")?.addEventListener("click", () => {
+  triggerFinalSubmissionRequest();
+});
+
+function triggerFinalSubmissionRequest() {
+  const total = activeCbtQuestions.length;
+  const answered = Object.keys(studentAnswers).length;
+  const unanswered = total - answered;
+
+  let promptMsg = `⚠️ Submit Assessment Check\n\nYou have answered ${answered} out of ${total} questions.\n`;
+  if (unanswered > 0) {
+    promptMsg += `🚨 Notice: You have ${unanswered} UNANSWERED questions.\n`;
+  }
+  promptMsg += `\nAre you sure you want to finalize this exam submission? This action is absolute, and no re-takes are permitted.`;
+
+  if (confirm(promptMsg)) {
+    submitExamination(false);
+  }
+}
+
+// Compile responses, calculate grade score, and commit to Firestore
+async function submitExamination(isAutoTimeUp = false) {
+  if (cbtTimerInterval) clearInterval(cbtTimerInterval);
+  
+  toggleCbtFocusLayout(false); // Restore sidebar layout
+
+  const activeScreen = document.getElementById("cbtActiveExamScreen");
+  if (activeScreen) activeScreen.style.display = "none";
+
+  const resultPanel = document.getElementById("cbtResultReportPanel");
+  if (resultPanel) {
+    resultPanel.style.display = "block";
+    resultPanel.innerHTML = `
+      <div class="portal-card" style="padding: 3rem; text-align: center;">
+        <i class="fa-solid fa-spinner fa-spin" style="font-size: 3rem; color: var(--primary); margin-bottom: 1.5rem;"></i>
+        <h2>Committing Grade Report...</h2>
+        <p style="color: var(--text-muted);">Please do not refresh. Your assessment scores are being synchronized securely in the central academic database.</p>
+      </div>
+    `;
+  }
+
+  // Calculate grading details
+  let score = 0;
+  let totalPossibleMarks = 0;
+
+  activeCbtQuestions.forEach(q => {
+    totalPossibleMarks += (q.marks || 1);
+    const selected = studentAnswers[q.id];
+    if (selected && selected === q.correctAnswer) {
+      score += (q.marks || 1);
+    }
+  });
+
+  const percentage = totalPossibleMarks > 0 ? Math.round((score / totalPossibleMarks) * 100) : 0;
+  
+  // Grade classification mapping
+  let grade = "F";
+  if (percentage >= 70) grade = "A";
+  else if (percentage >= 60) grade = "B";
+  else if (percentage >= 50) grade = "C";
+  else if (percentage >= 45) grade = "D";
+
+  const passed = percentage >= 45;
+
+  const resultDocId = `${currentStudentDoc.studentId.replace(/\//g, "-")}_${activeCbtExam.id}`;
+
+  try {
+    const resultRef = doc(db, "examinationResults", resultDocId);
+    await setDoc(resultRef, {
+      examId: activeCbtExam.id,
+      courseCode: activeCbtExam.courseCode,
+      title: activeCbtExam.title,
+      studentId: currentStudentDoc.studentId,
+      studentName: currentStudentDoc.fullName,
+      studentMatric: currentStudentDoc.matricNumber,
+      score: score,
+      totalPossibleMarks: totalPossibleMarks,
+      totalQuestions: activeCbtQuestions.length,
+      percentage: percentage,
+      grade: grade,
+      passed: passed,
+      submittedAt: new Date().toISOString()
+    });
+
+    // Clean up cache
+    localStorage.removeItem(`cbt_temp_answers_${activeCbtExam.id}`);
+
+    // Render results panel
+    if (resultPanel) {
+      const sealBgColor = passed ? 'rgba(40,167,69,0.1)' : 'rgba(220,53,69,0.1)';
+      const sealIconColor = passed ? '#28a745' : '#dc3545';
+      const statusBadgeBg = passed ? '#28A745' : '#DC3545';
+      const statusText = passed ? 'EXCELLENT (PASS)' : 'FAIL';
+
+      resultPanel.innerHTML = `
+        <div class="portal-card" style="padding: 3rem; border-top: 6px solid ${passed ? '#28A745' : '#DC3545'}; position: relative; overflow: hidden;">
+          <!-- Graphic feedback seal -->
+          <div style="position: absolute; top: -15px; right: -15px; width: 100px; height: 100px; background-color: ${sealBgColor}; border-radius: 50%; display: flex; align-items: center; justify-content: center; transform: rotate(15deg);">
+            <i class="fa-solid ${passed ? 'fa-award' : 'fa-circle-xmark'}" style="font-size: 3rem; color: ${sealIconColor}; opacity: 0.25;"></i>
+          </div>
+
+          <i class="fa-solid ${passed ? 'fa-circle-check' : 'fa-circle-exclamation'}" style="font-size: 4rem; color: ${passed ? '#28A745' : '#DC3545'}; margin-bottom: 1.5rem;"></i>
+          <h2 style="font-size: 1.75rem; font-weight: 800; color: var(--primary-dark); margin-bottom: 0.25rem;">${isAutoTimeUp ? 'Assessment Terminated!' : 'Assessment Logged Successfully!'}</h2>
+          <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 2rem;">Your responses have been successfully committed to the DIMABIN Central Registry.</p>
+
+          <!-- Scoring Card -->
+          <div style="background-color: var(--bg-slate); border: 1.5px solid var(--border-color); padding: 2rem; border-radius: var(--border-radius-lg); margin-bottom: 2.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; align-items: center;">
+            <div style="border-right: 1px solid var(--border-color); padding-right: 1rem;">
+              <span style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Your Grade Score</span>
+              <div style="font-size: 2.5rem; font-weight: 900; color: var(--primary); margin: 0.25rem 0;">${score} / ${totalPossibleMarks}</div>
+              <span style="font-size: 0.95rem; font-weight: 800; color: var(--accent);">${percentage}% Correct</span>
+            </div>
+            <div>
+              <span style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Performance Class</span>
+              <div style="font-size: 2.5rem; font-weight: 900; color: var(--accent); margin: 0.25rem 0;">${grade}</div>
+              <span style="display: inline-block; padding: 0.25rem 0.6rem; border-radius: 4px; font-weight: 800; font-size: 0.75rem; background-color: ${statusBadgeBg}; color: white;">${statusText}</span>
+            </div>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 0.75rem; text-align: left; background-color: #fcf8e3; border: 1px solid #fbeed5; padding: 1rem; border-radius: var(--border-radius-md); font-size: 0.8rem; color: #c09853; line-height: 1.5; margin-bottom: 2rem;">
+            <div><i class="fa-solid fa-info-circle"></i> <strong>Note:</strong> Under active academic policy rules, this immediate assessment score is subject to final lecturer audit and general moderation parameters before appearing on official registration transcripts.</div>
+          </div>
+
+          <button class="btn" id="btnCbtResultExit" style="background-color: var(--primary); color: white; min-width: 180px;"><i class="fa-solid fa-house-user"></i> Exit to Dashboard</button>
+        </div>
+      `;
+
+      // Bind Exit button
+      document.getElementById("btnCbtResultExit")?.addEventListener("click", () => {
+        resultPanel.style.display = "none";
+        renderStudentCbtDashboard();
+      });
+    }
+
+    window.showToast("CBT score reported and finalized.", "success");
+
+  } catch (err) {
+    console.error("Firestore result commit failed:", err);
+    alert(`⚠️ Critical Error!\n\nYour score is calculated: ${score}/${totalPossibleMarks} (${percentage}%), but we failed to synchronize it with the cloud database: ${err.message}.\n\nPlease do NOT close this window. Take a screenshot of this page immediately and submit it to your coordinator.`);
+  }
+}
+
+// Custom simple shuffle utility
+function shuffleCbtArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+}
+
+function escapeHtml(text) {
+  if (!text) return "";
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+}
+
+// Export hook dynamically
+window.renderStudentCbtDashboard = renderStudentCbtDashboard;
+

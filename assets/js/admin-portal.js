@@ -1013,15 +1013,204 @@ if (btnResetEmailJS) {
 // LECTURER MANAGEMENT MODULE
 // ==========================================
 
+// ==========================================
+// COURSE MANAGEMENT & ALLOCATION MODULE
+// ==========================================
+
+const OFFICIAL_THEOLOGY_SEED_COURSES = [
+  {
+    courseCode: "THY-101",
+    courseTitle: "Christology",
+    semester: "First Semester",
+    creditUnit: 3,
+    department: "Theology",
+    description: "A systematic study of the Person, nature, deity, and redemptive work of Jesus Christ as revealed in Scriptures."
+  },
+  {
+    courseCode: "BIB-101",
+    courseTitle: "Bibliology",
+    semester: "First Semester",
+    creditUnit: 3,
+    department: "Biblical Studies",
+    description: "An in-depth study of the origin, inspiration, canonization, preservation, and divine authority of the Holy Scriptures."
+  },
+  {
+    courseCode: "FND-101",
+    courseTitle: "Christian Foundation",
+    semester: "First Semester",
+    creditUnit: 2,
+    department: "Christian Education",
+    description: "An analysis of the fundamental doctrines of Christian theology, faith development, and spiritual maturation."
+  },
+  {
+    courseCode: "CTH-101",
+    courseTitle: "Faith",
+    semester: "First Semester",
+    creditUnit: 2,
+    department: "Theology",
+    description: "The study of the biblical doctrine of faith, examining its nature, mechanism, application, and heroic scriptural templates."
+  },
+  {
+    courseCode: "CTH-102",
+    courseTitle: "Prayer",
+    semester: "First Semester",
+    creditUnit: 2,
+    department: "Pastoral Ministry",
+    description: "A comprehensive investigation of the theology, protocols, dimensions, and practical disciplines of Christian prayer."
+  },
+  {
+    courseCode: "CTH-103",
+    courseTitle: "Fasting",
+    semester: "First Semester",
+    creditUnit: 2,
+    department: "Pastoral Ministry",
+    description: "A biblically and historically grounded study of fasting as a spiritual weapon and a means of personal consecration."
+  },
+  {
+    courseCode: "BIB-102",
+    courseTitle: "Synoptic Gospel",
+    semester: "First Semester",
+    creditUnit: 3,
+    department: "Biblical Studies",
+    description: "An analytical study of the Gospels of Matthew, Mark, and Luke, exploring their harmony, unique themes, and theological accents."
+  },
+  {
+    courseCode: "THY-102",
+    courseTitle: "Theology",
+    semester: "First Semester",
+    creditUnit: 3,
+    department: "Theology",
+    description: "An introductory survey of systematic theology, outlining the methods and divisions of theological analysis."
+  },
+  {
+    courseCode: "THY-201",
+    courseTitle: "Divinity",
+    semester: "Second Semester",
+    creditUnit: 3,
+    department: "Theology",
+    description: "An exploration of the Triune Godhead, examining the attributes, names, character, and eternal plan of the Father, Son, and Holy Spirit."
+  },
+  {
+    courseCode: "THY-202",
+    courseTitle: "Anthropology",
+    semester: "Second Semester",
+    creditUnit: 2,
+    department: "Theology",
+    description: "The theological study of humanity, covering the creation, moral constitution, fall, total depravity, and eternal destiny of mankind."
+  },
+  {
+    courseCode: "THY-203",
+    courseTitle: "Pneumatology",
+    semester: "Second Semester",
+    creditUnit: 3,
+    department: "Theology",
+    description: "A systematic study of the Holy Spirit, His divine personhood, operational offices, spiritual gifts, and active ministry in the believer's life."
+  },
+  {
+    courseCode: "THY-204",
+    courseTitle: "Ecclesiology",
+    semester: "Second Semester",
+    creditUnit: 3,
+    department: "Theology",
+    description: "The study of the Christian Church, its scriptural nature, institutional governance, ordinances, and ultimate redemptive mission."
+  },
+  {
+    courseCode: "LDR-201",
+    courseTitle: "Christian Leadership",
+    semester: "Second Semester",
+    creditUnit: 3,
+    department: "Christian Education",
+    description: "Practical and biblical theology of leadership, analyzing character requirements, stewardship principles, and staff coordination strategies."
+  },
+  {
+    courseCode: "MSN-201",
+    courseTitle: "Mission",
+    semester: "Second Semester",
+    creditUnit: 2,
+    department: "Missions & Evangelism",
+    description: "An examination of God's missionary heart, the historical growth of the global church, and cross-cultural mission methodologies."
+  },
+  {
+    courseCode: "MSN-202",
+    courseTitle: "Evangelism",
+    semester: "Second Semester",
+    creditUnit: 2,
+    department: "Missions & Evangelism",
+    description: "Practical and apologetic tools for effective soul-winning, street witness, community crusades, and personal gospel communication."
+  },
+  {
+    courseCode: "LDR-202",
+    courseTitle: "Discipleship",
+    semester: "Second Semester",
+    creditUnit: 2,
+    department: "Christian Education",
+    description: "The master-plan of spiritual mentoring, centering on Christ's pattern of multiplication, accountability structures, and spiritual multiplication."
+  },
+  {
+    courseCode: "THY-205",
+    courseTitle: "Homiletics",
+    semester: "Second Semester",
+    creditUnit: 3,
+    department: "Theology",
+    description: "The art, science, and spiritual preparation required for constructing and preaching expository, textual, and topical sermons."
+  }
+];
+
+// Seed courses collection if empty
+async function seedDefaultCoursesIfEmpty() {
+  try {
+    const qSnap = await getDocs(collection(db, "courses"));
+    if (qSnap.empty) {
+      console.log("🌱 [Seeding] Syllabus repository is vacant. Seeding 17 official theology courses...");
+      for (const course of OFFICIAL_THEOLOGY_SEED_COURSES) {
+        const payload = {
+          courseId: course.courseCode,
+          courseCode: course.courseCode,
+          courseTitle: course.courseTitle,
+          code: course.courseCode, // backward-compatibility fallback
+          name: course.courseTitle, // backward-compatibility fallback
+          semester: course.semester,
+          creditUnit: course.creditUnit,
+          department: course.department,
+          description: course.description,
+          status: "Active",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        await setDoc(doc(db, "courses", course.courseCode), payload);
+      }
+      console.log("✅ [Seeding] Successfully seeded 17 official theological courses!");
+      return true;
+    }
+    return false;
+  } catch (err) {
+    console.error("❌ Seeding official courses failed:", err);
+    return false;
+  }
+}
+
 async function loadCourses() {
   try {
+    // 1. Seed if empty
+    await seedDefaultCoursesIfEmpty();
+
+    // 2. Load all courses
     const qSnap = await getDocs(collection(db, "courses"));
     allCourses = [];
     qSnap.forEach(docSnap => {
       allCourses.push({ id: docSnap.id, ...docSnap.data() });
     });
     console.log(`🌟 [Courses Catalog] Loaded ${allCourses.length} courses successfully!`);
+    
+    // 3. Populate existing checkboxes (for register lecturer form)
     populateCourseCheckboxes();
+
+    // 4. Render new Course Management Directory
+    renderCoursesDirectory();
+
+    // 5. Populate Allocation Facilitator selectors
+    populateCourseAllocationLecturers();
+    renderCourseAllocationGrid();
   } catch (err) {
     console.warn("⚠️ Failed to load courses catalog:", err);
   }
@@ -1033,15 +1222,15 @@ function populateCourseCheckboxes() {
   if (!container && !editContainer) return;
 
   // Sort courses alphabetically by code
-  const sortedCourses = [...allCourses].sort((a, b) => (a.code || "").localeCompare(b.code || ""));
+  const sortedCourses = [...allCourses].sort((a, b) => (a.courseCode || a.code || "").localeCompare(b.courseCode || b.code || ""));
 
   let html = "";
   if (sortedCourses.length === 0) {
     html = `<div style="color: var(--text-muted); font-size: 0.9rem; grid-column: 1/-1; text-align: center; padding: 1rem;">No courses available in the syllabus repository.</div>`;
   } else {
     sortedCourses.forEach(c => {
-      const code = c.code || c.id || "";
-      const name = c.name || "";
+      const code = c.courseCode || c.code || c.id || "";
+      const name = c.courseTitle || c.name || "";
       html += `
         <label style="display: flex; align-items: flex-start; gap: 0.6rem; background-color: var(--bg-white); padding: 0.6rem 0.8rem; border-radius: 6px; border: 1.5px solid var(--border-color); cursor: pointer; font-size: 0.85rem; transition: border-color 0.2s;">
           <input type="checkbox" name="assignedCourses" value="${code}" style="margin-top: 0.2rem; accent-color: var(--primary);">
@@ -1057,8 +1246,8 @@ function populateCourseCheckboxes() {
     editHtml = `<div style="color: var(--text-muted); font-size: 0.85rem; grid-column: 1/-1; text-align: center; padding: 1rem;">No courses available in the syllabus repository.</div>`;
   } else {
     sortedCourses.forEach(c => {
-      const code = c.code || c.id || "";
-      const name = c.name || "";
+      const code = c.courseCode || c.code || c.id || "";
+      const name = c.courseTitle || c.name || "";
       editHtml += `
         <label style="display: flex; align-items: flex-start; gap: 0.5rem; background-color: var(--bg-white); padding: 0.5rem 0.7rem; border-radius: 6px; border: 1.5px solid var(--border-color); cursor: pointer; font-size: 0.8rem; transition: border-color 0.2s;">
           <input type="checkbox" name="editAssignedCourses" value="${code}" style="margin-top: 0.15rem; accent-color: var(--primary);">
@@ -1068,6 +1257,574 @@ function populateCourseCheckboxes() {
     });
   }
   if (editContainer) editContainer.innerHTML = editHtml;
+}
+
+// Course Management Directory Renderer
+function renderCoursesDirectory() {
+  const tbody = document.getElementById("coursesTableBody");
+  if (!tbody) return;
+
+  const searchQuery = document.getElementById("searchCoursesInput") ? document.getElementById("searchCoursesInput").value.toLowerCase().trim() : "";
+  const filterSemester = document.getElementById("filterCourseSemester") ? document.getElementById("filterCourseSemester").value : "all";
+  const filterStatus = document.getElementById("filterCourseStatus") ? document.getElementById("filterCourseStatus").value : "all";
+  const sortBy = document.getElementById("sortCourseBy") ? document.getElementById("sortCourseBy").value : "code-asc";
+
+  let filtered = allCourses.filter(c => {
+    const code = (c.courseCode || c.code || "").toLowerCase();
+    const title = (c.courseTitle || c.name || "").toLowerCase();
+    const dept = (c.department || "").toLowerCase();
+    
+    const matchesSearch = code.includes(searchQuery) || title.includes(searchQuery) || dept.includes(searchQuery);
+    const matchesSemester = filterSemester === "all" || c.semester === filterSemester;
+    const matchesStatus = filterStatus === "all" || c.status === filterStatus;
+
+    return matchesSearch && matchesSemester && matchesStatus;
+  });
+
+  // Sorting logic
+  filtered.sort((a, b) => {
+    const codeA = a.courseCode || a.code || "";
+    const codeB = b.courseCode || b.code || "";
+    const titleA = a.courseTitle || a.name || "";
+    const titleB = b.courseTitle || b.name || "";
+    const unitA = parseInt(a.creditUnit || 0);
+    const unitB = parseInt(b.creditUnit || 0);
+
+    if (sortBy === "code-asc") return codeA.localeCompare(codeB);
+    if (sortBy === "code-desc") return codeB.localeCompare(codeA);
+    if (sortBy === "title-asc") return titleA.localeCompare(titleB);
+    if (sortBy === "unit-desc") return unitB - unitA;
+    if (sortBy === "unit-asc") return unitA - unitB;
+    return 0;
+  });
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 3rem; color: var(--text-muted);">No courses matching selected parameters.</td></tr>`;
+    return;
+  }
+
+  let html = "";
+  filtered.forEach(c => {
+    const code = c.courseCode || c.code || c.id || "";
+    const title = c.courseTitle || c.name || "";
+    const semester = c.semester || "-";
+    const creditUnit = c.creditUnit || "-";
+    const department = c.department || "-";
+    const status = c.status || "Active";
+
+    const statusBadgeColor = status === "Active" ? "rgba(40,167,69,0.12)" : "rgba(220,53,69,0.12)";
+    const statusTextColor = status === "Active" ? "#28A745" : "#DC3545";
+
+    html += `
+      <tr style="border-bottom: 1.5px solid var(--border-color);">
+        <td style="padding: 1rem; font-weight: 700; color: var(--primary);">${code}</td>
+        <td style="padding: 1rem; font-weight: 500;">${title}</td>
+        <td style="padding: 1rem;">${semester}</td>
+        <td style="padding: 1rem;"><span style="background-color: var(--bg-slate); border: 1px solid var(--border-color); padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 600;">${creditUnit} Units</span></td>
+        <td style="padding: 1rem; font-size: 0.85rem; color: var(--text-muted);">${department}</td>
+        <td style="padding: 1rem;">
+          <span style="background-color: ${statusBadgeColor}; color: ${statusTextColor}; padding: 0.25rem 0.6rem; border-radius: 50px; font-size: 0.75rem; font-weight: 700; display: inline-block;">
+            ${status}
+          </span>
+        </td>
+        <td style="padding: 1rem; text-align: center;">
+          <div style="display: flex; gap: 0.5rem; justify-content: center;">
+            <button class="btn btn-action-edit-course" data-id="${code}" title="Modify Course" style="background-color: #1F3B82; color: white; border: none; width: 34px; height: 34px; border-radius: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.9rem; transition: background-color 0.15s;"><i class="fa-solid fa-pen"></i></button>
+            ${status === "Active" 
+              ? `<button class="btn btn-action-deactivate-course" data-id="${code}" title="Deactivate Course" style="background-color: #F4B000; color: white; border: none; width: 34px; height: 34px; border-radius: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.9rem; transition: background-color 0.15s;"><i class="fa-solid fa-ban"></i></button>`
+              : `<button class="btn btn-action-activate-course" data-id="${code}" title="Activate Course" style="background-color: #28A745; color: white; border: none; width: 34px; height: 34px; border-radius: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.9rem; transition: background-color 0.15s;"><i class="fa-solid fa-circle-check"></i></button>`
+            }
+            <button class="btn btn-action-delete-course" data-id="${code}" title="Remove Course" style="background-color: #DC3545; color: white; border: none; width: 34px; height: 34px; border-radius: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.9rem; transition: background-color 0.15s;"><i class="fa-solid fa-trash-can"></i></button>
+          </div>
+        </td>
+      </tr>
+    `;
+  });
+
+  tbody.innerHTML = html;
+
+  // Re-attach Action Listeners
+  document.querySelectorAll(".btn-action-edit-course").forEach(btn => {
+    btn.addEventListener("click", () => triggerEditCourseModal(btn.getAttribute("data-id")));
+  });
+
+  document.querySelectorAll(".btn-action-deactivate-course").forEach(btn => {
+    btn.addEventListener("click", () => toggleCourseStatus(btn.getAttribute("data-id"), "Inactive"));
+  });
+
+  document.querySelectorAll(".btn-action-activate-course").forEach(btn => {
+    btn.addEventListener("click", () => toggleCourseStatus(btn.getAttribute("data-id"), "Active"));
+  });
+
+  document.querySelectorAll(".btn-action-delete-course").forEach(btn => {
+    btn.addEventListener("click", () => triggerDeleteCourse(btn.getAttribute("data-id")));
+  });
+}
+
+// Tab Switching Listener for Course subtabs
+document.querySelectorAll(".course-sub-tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const targetSub = btn.getAttribute("data-coursesubtab");
+    document.querySelectorAll(".course-sub-tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".course-subtab-content").forEach(c => c.style.display = "none");
+
+    btn.classList.add("active");
+    const targetEl = document.getElementById(`coursesubtab-${targetSub}`);
+    if (targetEl) targetEl.style.display = "block";
+  });
+});
+
+// Search & Filter event binders
+["searchCoursesInput", "filterCourseSemester", "filterCourseStatus", "sortCourseBy"].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) {
+    el.addEventListener("input", renderCoursesDirectory);
+    el.addEventListener("change", renderCoursesDirectory);
+  }
+});
+
+// Reset Filters button
+const btnResetCourseFilters = document.getElementById("btnResetCourseFilters");
+if (btnResetCourseFilters) {
+  btnResetCourseFilters.addEventListener("click", () => {
+    const search = document.getElementById("searchCoursesInput");
+    const sem = document.getElementById("filterCourseSemester");
+    const stat = document.getElementById("filterCourseStatus");
+    const sort = document.getElementById("sortCourseBy");
+
+    if (search) search.value = "";
+    if (sem) sem.value = "all";
+    if (stat) stat.value = "all";
+    if (sort) sort.value = "code-asc";
+
+    renderCoursesDirectory();
+  });
+}
+
+// Add Course Handler
+const addCourseForm = document.getElementById("addCourseForm");
+if (addCourseForm) {
+  addCourseForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    try {
+      const courseCode = document.getElementById("addCourseCode").value.toUpperCase().trim();
+      const courseTitle = document.getElementById("addCourseTitle").value.trim();
+      const semester = document.getElementById("addCourseSemester").value;
+      const creditUnit = parseInt(document.getElementById("addCourseCredit").value);
+      const department = document.getElementById("addCourseDept").value;
+      const description = document.getElementById("addCourseDesc").value.trim();
+      const status = document.getElementById("addCourseStatus").value;
+
+      if (!courseCode || !courseTitle || !semester || !creditUnit || !department || !description) {
+        throw new Error("Please fill in all required fields accurately.");
+      }
+
+      // Check if course already exists to prevent duplicate codes
+      const existingDoc = await getDoc(doc(db, "courses", courseCode));
+      if (existingDoc.exists()) {
+        throw new Error(`Course Code "${courseCode}" already exists in the theological curriculum registry. Duplicate Course Codes are strictly prohibited.`);
+      }
+
+      const payload = {
+        courseId: courseCode,
+        courseCode: courseCode,
+        courseTitle: courseTitle,
+        code: courseCode, // backwards compatibility fallback
+        name: courseTitle, // backwards compatibility fallback
+        semester: semester,
+        creditUnit: creditUnit,
+        department: department,
+        description: description,
+        status: status,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      await setDoc(doc(db, "courses", courseCode), payload);
+      window.showToast(`Course "${courseCode} - ${courseTitle}" successfully cataloged!`, "success");
+      
+      addCourseForm.reset();
+      
+      // Auto switch back to list view
+      document.querySelector('.course-sub-tab-btn[data-coursesubtab="list"]').click();
+      
+      // Reload everything
+      await loadCourses();
+    } catch (err) {
+      console.error("❌ Add Course failed:", err);
+      window.showToast(err.message, "error");
+    }
+  });
+}
+
+// Trigger Edit Modal
+async function triggerEditCourseModal(courseCode) {
+  try {
+    const docSnap = await getDoc(doc(db, "courses", courseCode));
+    if (!docSnap.exists()) {
+      throw new Error("Course record not found in the database.");
+    }
+    const c = docSnap.data();
+
+    document.getElementById("editCourseId").value = courseCode;
+    document.getElementById("editCourseCode").value = courseCode;
+    document.getElementById("editCourseTitle").value = c.courseTitle || c.name || "";
+    document.getElementById("editCourseSemester").value = c.semester || "First Semester";
+    document.getElementById("editCourseCredit").value = c.creditUnit || "3";
+    document.getElementById("editCourseDept").value = c.department || "Theology";
+    document.getElementById("editCourseStatus").value = c.status || "Active";
+    document.getElementById("editCourseDesc").value = c.description || "";
+
+    const modal = document.getElementById("courseEditModal");
+    if (modal) modal.style.display = "flex";
+  } catch (err) {
+    window.showToast("Failed to retrieve course details: " + err.message, "error");
+  }
+}
+
+// Close Edit Modal
+const btnCancelCourseEdit = document.getElementById("btnCancelCourseEdit");
+if (btnCancelCourseEdit) {
+  btnCancelCourseEdit.addEventListener("click", () => {
+    const modal = document.getElementById("courseEditModal");
+    if (modal) modal.style.display = "none";
+  });
+}
+
+// Edit Course Submit Form
+const editCourseForm = document.getElementById("editCourseForm");
+if (editCourseForm) {
+  editCourseForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    try {
+      const courseId = document.getElementById("editCourseId").value;
+      const title = document.getElementById("editCourseTitle").value.trim();
+      const semester = document.getElementById("editCourseSemester").value;
+      const credit = parseInt(document.getElementById("editCourseCredit").value);
+      const department = document.getElementById("editCourseDept").value;
+      const status = document.getElementById("editCourseStatus").value;
+      const description = document.getElementById("editCourseDesc").value.trim();
+
+      const docRef = doc(db, "courses", courseId);
+      await updateDoc(docRef, {
+        courseTitle: title,
+        name: title, // backwards compatibility fallback
+        semester: semester,
+        creditUnit: credit,
+        department: department,
+        status: status,
+        description: description,
+        updatedAt: new Date().toISOString()
+      });
+
+      window.showToast(`Syllabus course "${courseId}" updated successfully!`, "success");
+      
+      const modal = document.getElementById("courseEditModal");
+      if (modal) modal.style.display = "none";
+
+      await loadCourses();
+    } catch (err) {
+      window.showToast("Update failed: " + err.message, "error");
+    }
+  });
+}
+
+// Toggle Course Status
+async function toggleCourseStatus(courseCode, newStatus) {
+  try {
+    const docRef = doc(db, "courses", courseCode);
+    await updateDoc(docRef, {
+      status: newStatus,
+      updatedAt: new Date().toISOString()
+    });
+    window.showToast(`Course "${courseCode}" status modified to ${newStatus}!`, "success");
+    await loadCourses();
+  } catch (err) {
+    window.showToast("Status transition failed: " + err.message, "error");
+  }
+}
+
+// Delete Course with checks
+async function triggerDeleteCourse(courseCode) {
+  try {
+    // 1. Check if course is assigned to any lecturers
+    const lecturersSnap = await getDocs(collection(db, "lecturers"));
+    let assignedToLecturer = false;
+    let matchingLecturerName = "";
+
+    lecturersSnap.forEach(lDoc => {
+      const data = lDoc.data();
+      const assigned = data.coursesAssigned || data.assignedCourses || [];
+      if (assigned.includes(courseCode)) {
+        assignedToLecturer = true;
+        matchingLecturerName = data.fullName || data.lecturerId;
+      }
+    });
+
+    // 2. Check if course is registered by students
+    const regsSnap = await getDocs(collection(db, "registrations"));
+    let registeredByStudent = false;
+
+    regsSnap.forEach(rDoc => {
+      const data = rDoc.data();
+      const registered = data.registeredCourses || [];
+      if (registered.includes(courseCode)) {
+        registeredByStudent = true;
+      }
+    });
+
+    // 3. Prevent permanent deletion if assigned
+    if (assignedToLecturer || registeredByStudent) {
+      let reason = "";
+      if (assignedToLecturer && registeredByStudent) {
+        reason = `assigned to lecturer ${matchingLecturerName} AND has active student course registrations`;
+      } else if (assignedToLecturer) {
+        reason = `assigned to lecturer ${matchingLecturerName}`;
+      } else {
+        reason = `has active student course registrations in the system`;
+      }
+
+      alert(`⚠️ Course Deletion Prevented!\n\nThis course cannot be deleted because it is already ${reason}.\n\nTo withdraw this course from active enrollment options, the course status will be changed to Inactive instead.`);
+      await toggleCourseStatus(courseCode, "Inactive");
+      return;
+    }
+
+    // 4. Confirm permanent deletion if completely unassigned
+    const proceed = confirm(`⚠️ Confirm Permanent Deletion\n\nAre you absolutely sure you want to permanently delete course [${courseCode}] from the DIMABIN syllabus database? This action is irreversible.`);
+    if (proceed) {
+      const { deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
+      await deleteDoc(doc(db, "courses", courseCode));
+      window.showToast(`Course "${courseCode}" permanently deleted from curriculum!`, "success");
+      await loadCourses();
+    }
+  } catch (err) {
+    window.showToast("Deletion handler failed: " + err.message, "error");
+  }
+}
+
+// ==========================================
+// COURSE ALLOCATION FUNCTIONALITY
+// ==========================================
+
+// Populate Select Lecturer dropdown inside Course Allocation
+function populateCourseAllocationLecturers() {
+  const select = document.getElementById("allocationLecturerSelect");
+  if (!select) return;
+
+  // Keep chosen lecturer selected if they still exist
+  const currentVal = select.value;
+
+  select.innerHTML = `<option value="">-- Choose Lecturer --</option>`;
+  
+  // Sort lecturers alphabetically
+  const sortedLecturers = [...allLecturers].sort((a, b) => (a.fullName || "").localeCompare(b.fullName || ""));
+
+  sortedLecturers.forEach(lec => {
+    const id = lec.id || lec.lecturerId || "";
+    const name = lec.fullName || "";
+    const title = lec.title || "";
+    const optionText = `${title} ${name} (${id})`;
+    
+    select.insertAdjacentHTML("beforeend", `<option value="${id}" ${id === currentVal ? "selected" : ""}>${optionText}</option>`);
+  });
+
+  // Attach change listener to update meta details
+  select.onchange = () => handleAllocationLecturerChange();
+}
+
+function handleAllocationLecturerChange() {
+  const select = document.getElementById("allocationLecturerSelect");
+  const metaBox = document.getElementById("allocationLecMetaDisplay");
+  const saveBtn = document.getElementById("btnSaveCourseAllocation");
+  const selectAllBtn = document.getElementById("btnAllocSelectAll");
+  const clearAllBtn = document.getElementById("btnAllocClearAll");
+
+  if (!select) return;
+
+  const lecId = select.value;
+
+  if (!lecId) {
+    // Hide details and disable allocations
+    if (metaBox) metaBox.style.display = "none";
+    if (saveBtn) saveBtn.disabled = true;
+    if (selectAllBtn) selectAllBtn.disabled = true;
+    if (clearAllBtn) clearAllBtn.disabled = true;
+    renderCourseAllocationGrid(null);
+    return;
+  }
+
+  // Find lecturer details
+  const lec = allLecturers.find(l => l.id === lecId);
+  if (!lec) return;
+
+  // Show details
+  if (metaBox) {
+    document.getElementById("allocMetaDept").textContent = lec.department || "-";
+    document.getElementById("allocMetaPos").textContent = lec.position || "-";
+    document.getElementById("allocMetaEmail").textContent = lec.email || "-";
+    
+    const assignedCount = (lec.coursesAssigned || lec.assignedCourses || []).length;
+    document.getElementById("allocMetaCount").textContent = assignedCount;
+    metaBox.style.display = "block";
+  }
+
+  // Enable buttons
+  if (saveBtn) saveBtn.disabled = false;
+  if (selectAllBtn) selectAllBtn.disabled = false;
+  if (clearAllBtn) clearAllBtn.disabled = false;
+
+  // Render course checkboxes matching this lecturer's assigned list
+  renderCourseAllocationGrid(lec);
+}
+
+// Render the checkboxes grid for allocation
+function renderCourseAllocationGrid(lecturer = null) {
+  const container = document.getElementById("allocCoursesContainer");
+  const countDisp = document.getElementById("allocSelectedCoursesCountDisplay");
+  if (!container) return;
+
+  if (!lecturer) {
+    container.innerHTML = `
+      <div style="color: var(--text-muted); font-size: 0.95rem; text-align: center; padding: 2rem;">
+        <i class="fa-solid fa-arrow-left" style="margin-right: 0.5rem; color: var(--accent);"></i> Select a facilitator on the left to activate syllabus allocation fields.
+      </div>
+    `;
+    if (countDisp) countDisp.textContent = "0 selected";
+    return;
+  }
+
+  // Gather active courses only
+  const activeCourses = allCourses.filter(c => c.status === "Active");
+  if (activeCourses.length === 0) {
+    container.innerHTML = `<div style="color: var(--text-muted); padding: 1.5rem; text-align: center;">No active courses available in the curriculum. Ensure courses are activated inside Course Management.</div>`;
+    return;
+  }
+
+  // Separate courses by semester
+  const firstSemesterCourses = activeCourses.filter(c => c.semester === "First Semester");
+  const secondSemesterCourses = activeCourses.filter(c => c.semester === "Second Semester");
+
+  const lecturerAllocated = lecturer.coursesAssigned || lecturer.assignedCourses || [];
+
+  let html = "";
+
+  // Render function helper
+  const renderSemesterSection = (title, courses) => {
+    if (courses.length === 0) return "";
+    let sectionHtml = `
+      <div>
+        <h4 style="color: var(--primary); font-size: 0.95rem; margin-top: 0; margin-bottom: 0.75rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
+          <i class="fa-solid fa-calendar-days" style="color: var(--accent);"></i> ${title}
+        </h4>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.75rem;">
+    `;
+
+    courses.forEach(c => {
+      const code = c.courseCode || c.code || c.id || "";
+      const courseTitle = c.courseTitle || c.name || "";
+      const isChecked = lecturerAllocated.includes(code);
+      const credits = c.creditUnit || "3";
+
+      sectionHtml += `
+        <label style="display: flex; align-items: flex-start; gap: 0.65rem; background-color: var(--bg-slate); padding: 0.8rem; border-radius: 6px; border: 1.5px solid ${isChecked ? 'var(--primary)' : 'var(--border-color)'}; cursor: pointer; font-size: 0.85rem; transition: all 0.2s;">
+          <input type="checkbox" class="alloc-course-checkbox" value="${code}" ${isChecked ? 'checked' : ''} style="margin-top: 0.2rem; accent-color: var(--primary);" onchange="updateAllocationCheckboxCount()">
+          <div style="flex: 1;">
+            <div style="font-weight: 700; color: var(--primary); margin-bottom: 0.15rem;">${code} <span style="font-size:0.7rem; background:rgba(31,59,130,0.08); padding:1px 4px; border-radius:3px;">${credits} Cr</span></div>
+            <div style="font-weight: 500; color: var(--text-dark); font-size:0.8rem; line-height: 1.2;">${courseTitle}</div>
+          </div>
+        </label>
+      `;
+    });
+
+    sectionHtml += `
+        </div>
+      </div>
+    `;
+    return sectionHtml;
+  };
+
+  html += renderSemesterSection("First Semester Curriculum", firstSemesterCourses);
+  html += renderSemesterSection("Second Semester Curriculum", secondSemesterCourses);
+
+  container.innerHTML = html;
+  updateAllocationCheckboxCount();
+}
+
+// Update Allocation Counter and border styles dynamically on check change
+window.updateAllocationCheckboxCount = () => {
+  const checkboxes = document.querySelectorAll(".alloc-course-checkbox");
+  const countDisp = document.getElementById("allocSelectedCoursesCountDisplay");
+  
+  let checkedCount = 0;
+  checkboxes.forEach(chk => {
+    // Update labels border style dynamically
+    const parentLabel = chk.closest("label");
+    if (chk.checked) {
+      checkedCount++;
+      if (parentLabel) parentLabel.style.borderColor = "var(--primary)";
+    } else {
+      if (parentLabel) parentLabel.style.borderColor = "var(--border-color)";
+    }
+  });
+
+  if (countDisp) countDisp.textContent = `${checkedCount} selected`;
+};
+
+// Bulk allocation controls
+const btnAllocSelectAll = document.getElementById("btnAllocSelectAll");
+if (btnAllocSelectAll) {
+  btnAllocSelectAll.onclick = () => {
+    document.querySelectorAll(".alloc-course-checkbox").forEach(chk => {
+      chk.checked = true;
+    });
+    updateAllocationCheckboxCount();
+  };
+}
+
+const btnAllocClearAll = document.getElementById("btnAllocClearAll");
+if (btnAllocClearAll) {
+  btnAllocClearAll.onclick = () => {
+    document.querySelectorAll(".alloc-course-checkbox").forEach(chk => {
+      chk.checked = false;
+    });
+    updateAllocationCheckboxCount();
+  };
+}
+
+// Save Allocations Button
+const btnSaveCourseAllocation = document.getElementById("btnSaveCourseAllocation");
+if (btnSaveCourseAllocation) {
+  btnSaveCourseAllocation.onclick = async () => {
+    const select = document.getElementById("allocationLecturerSelect");
+    if (!select) return;
+    const lecId = select.value;
+    if (!lecId) return;
+
+    try {
+      // Gather checked courses
+      const checkedBoxes = document.querySelectorAll(".alloc-course-checkbox:checked");
+      const allocatedCodes = Array.from(checkedBoxes).map(chk => chk.value);
+
+      const lec = allLecturers.find(l => l.id === lecId);
+      if (!lec) return;
+
+      const docRef = doc(db, "lecturers", lecId);
+      await updateDoc(docRef, {
+        coursesAssigned: allocatedCodes,
+        assignedCourses: allocatedCodes, // Dual field syncing
+        updatedAt: new Date().toISOString()
+      });
+
+      window.showToast(`Facilitator allocations successfully synchronized for ${lec.fullName}!`, "success");
+      
+      // Reload everything to keep state fully consistent
+      await loadLecturers();
+      handleAllocationLecturerChange();
+    } catch (err) {
+      console.error("❌ Allocation save failed:", err);
+      window.showToast("Failed to save course allocations: " + err.message, "error");
+    }
+  };
 }
 
 async function loadLecturers() {

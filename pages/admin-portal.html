@@ -1166,6 +1166,12 @@
           <button class="sidebar-nav-btn" data-tab="lecturer-management">
             <i class="fa-solid fa-chalkboard-user"></i> Lecturer Management
           </button>
+          <button class="sidebar-nav-btn" data-tab="courses-management">
+            <i class="fa-solid fa-book-bible"></i> Course Management
+          </button>
+          <button class="sidebar-nav-btn" data-tab="courses-allocation">
+            <i class="fa-solid fa-list-check"></i> Course Allocation
+          </button>
           <button class="sidebar-nav-btn" data-tab="emailjs">
             <i class="fa-solid fa-sliders"></i> EmailJS & Settings
           </button>
@@ -1599,6 +1605,215 @@
           </div>
         </div>
 
+        <!-- Tab 6: Course Management -->
+        <div class="tab-content" id="tab-courses-management">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+            <div>
+              <h2 class="font-display" style="color: var(--primary); font-size: 2rem; margin-bottom: 0.5rem; font-weight: 800;">Course Management</h2>
+              <p style="color: var(--text-muted);">Configure academic syllabus modules, curriculum parameters, and status coordinates.</p>
+            </div>
+            <div style="display: flex; gap: 0.75rem;">
+              <button class="btn course-sub-tab-btn active" data-coursesubtab="list" title="View Courses Syllabus" style="background-color: #1F3B82; color: white; width: 44px; height: 44px; border-radius: 6px; display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; transition: all 0.2s;"><i class="fa-solid fa-list-ul" style="font-size: 1.15rem;"></i></button>
+              <button class="btn course-sub-tab-btn" data-coursesubtab="add" title="Create New Course" style="background-color: #1F3B82; color: white; width: 44px; height: 44px; border-radius: 6px; display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; transition: all 0.2s;"><i class="fa-solid fa-plus" style="font-size: 1.15rem;"></i></button>
+            </div>
+          </div>
+
+          <!-- SUB-TAB 1: All Courses Directory -->
+          <div class="course-subtab-content" id="coursesubtab-list">
+            <!-- Filter & Sort Controls -->
+            <div class="search-filter-bar" style="display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; background-color: var(--bg-white); padding: 1.25rem; border-radius: 6px; border: 1.5px solid var(--border-color);">
+              <div class="search-input-wrapper" style="flex: 1; min-width: 250px;">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="searchCoursesInput" placeholder="Search directory by code, title, department..." style="width: 100%; border: none; outline: none; background: transparent; font-family: 'Poppins', sans-serif;">
+              </div>
+              <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+                <select id="filterCourseSemester" class="form-control" style="width: auto; min-width: 140px; font-family: 'Poppins', sans-serif; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; padding: 0.5rem 0.75rem;">
+                  <option value="all">All Semesters</option>
+                  <option value="First Semester">First Semester</option>
+                  <option value="Second Semester">Second Semester</option>
+                </select>
+                <select id="filterCourseStatus" class="form-control" style="width: auto; min-width: 130px; font-family: 'Poppins', sans-serif; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; padding: 0.5rem 0.75rem;">
+                  <option value="all">All Statuses</option>
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
+                <select id="sortCourseBy" class="form-control" style="width: auto; min-width: 160px; font-family: 'Poppins', sans-serif; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; padding: 0.5rem 0.75rem;">
+                  <option value="code-asc">Sort: Code (A-Z)</option>
+                  <option value="code-desc">Sort: Code (Z-A)</option>
+                  <option value="title-asc">Sort: Title (A-Z)</option>
+                  <option value="unit-desc">Sort: Credits (High-Low)</option>
+                  <option value="unit-asc">Sort: Credits (Low-High)</option>
+                </select>
+                <button id="btnResetCourseFilters" class="btn" title="Reset Filters" style="background-color: #1F3B82; color: white; width: 40px; height: 40px; border-radius: 6px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-rotate-left"></i></button>
+              </div>
+            </div>
+
+            <!-- Courses Table -->
+            <div class="table-container" style="background-color: var(--bg-white); border-radius: 6px; overflow-x: auto; border: 1.5px solid var(--border-color);">
+              <table class="custom-table" style="width: 100%; border-collapse: collapse; min-width: 800px;">
+                <thead>
+                  <tr style="background-color: var(--bg-slate); text-align: left; border-bottom: 1.5px solid var(--border-color);">
+                    <th style="padding: 1rem; color: var(--primary); font-weight: 700;">Course Code</th>
+                    <th style="padding: 1rem; color: var(--primary); font-weight: 700;">Title</th>
+                    <th style="padding: 1rem; color: var(--primary); font-weight: 700;">Semester</th>
+                    <th style="padding: 1rem; color: var(--primary); font-weight: 700;">Credits</th>
+                    <th style="padding: 1rem; color: var(--primary); font-weight: 700;">Department</th>
+                    <th style="padding: 1rem; color: var(--primary); font-weight: 700;">Status</th>
+                    <th style="padding: 1rem; color: var(--primary); font-weight: 700; text-align: center;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="coursesTableBody">
+                  <tr>
+                    <td colspan="7" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+                      <i class="fa-solid fa-spinner fa-spin" style="margin-right: 0.5rem;"></i> Loading academic courses...
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- SUB-TAB 2: Add New Course -->
+          <div class="course-subtab-content" id="coursesubtab-add" style="display: none;">
+            <div class="portal-support-card" style="background-color: var(--bg-white); padding: 2rem; border-radius: 6px; border: 1.5px solid var(--border-color); margin-bottom: 2rem;">
+              <h3 class="font-display" style="color: var(--primary); font-size: 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem; font-weight: 700;">
+                <i class="fa-solid fa-book" style="color: var(--accent);"></i> New Syllabus Course Entry
+              </h3>
+              
+              <form id="addCourseForm">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
+                  
+                  <div class="form-group">
+                    <label for="addCourseCode" style="font-size: 0.8rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Course Code</label>
+                    <input type="text" id="addCourseCode" class="form-control" placeholder="e.g. THY-101" style="width: 100%; padding: 0.75rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+                  </div>
+
+                  <div class="form-group" style="grid-column: span 2;">
+                    <label for="addCourseTitle" style="font-size: 0.8rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Course Title</label>
+                    <input type="text" id="addCourseTitle" class="form-control" placeholder="e.g. Christology" style="width: 100%; padding: 0.75rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="addCourseSemester" style="font-size: 0.8rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Semester</label>
+                    <select id="addCourseSemester" class="form-control" style="width: 100%; padding: 0.75rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+                      <option value="First Semester">First Semester</option>
+                      <option value="Second Semester">Second Semester</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="addCourseCredit" style="font-size: 0.8rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Credit Units</label>
+                    <select id="addCourseCredit" class="form-control" style="width: 100%; padding: 0.75rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+                      <option value="1">1 Credit Unit</option>
+                      <option value="2">2 Credit Units</option>
+                      <option value="3" selected>3 Credit Units</option>
+                      <option value="4">4 Credit Units</option>
+                      <option value="5">5 Credit Units</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="addCourseDept" style="font-size: 0.8rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Department</label>
+                    <select id="addCourseDept" class="form-control" style="width: 100%; padding: 0.75rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+                      <option value="Theology">Theology</option>
+                      <option value="Biblical Studies">Biblical Studies</option>
+                      <option value="Christian Education">Christian Education</option>
+                      <option value="Missions & Evangelism">Missions & Evangelism</option>
+                      <option value="Pastoral Ministry">Pastoral Ministry</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="addCourseStatus" style="font-size: 0.8rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Status</label>
+                    <select id="addCourseStatus" class="form-control" style="width: 100%; padding: 0.75rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group" style="grid-column: span 4;">
+                    <label for="addCourseDesc" style="font-size: 0.8rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Course Description</label>
+                    <textarea id="addCourseDesc" rows="3" class="form-control" placeholder="Write academic scope, goals, and learning outline coordinates..." style="width: 100%; padding: 0.75rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif; resize: vertical;" required></textarea>
+                  </div>
+
+                </div>
+
+                <!-- Submit Action (Icons Only!) -->
+                <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+                  <button type="submit" class="btn" title="Create Course" style="background-color: #1F3B82; color: white; border: none; width: 44px; height: 44px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.15rem; transition: background-color 0.2s;"><i class="fa-solid fa-floppy-disk"></i></button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 7: Course Allocation -->
+        <div class="tab-content" id="tab-courses-allocation">
+          <div style="margin-bottom: 2rem;">
+            <h2 class="font-display" style="color: var(--primary); font-size: 2rem; margin-bottom: 0.5rem; font-weight: 800;">Course Allocation</h2>
+            <p style="color: var(--text-muted);">Assign active curriculum modules to authorized academic staff members.</p>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 320px 1fr; gap: 2rem; align-items: start;">
+            
+            <!-- Lecturer Selection Box -->
+            <div class="portal-support-card" style="background-color: var(--bg-white); padding: 1.5rem; border-radius: 6px; border: 1.5px solid var(--border-color); position: sticky; top: 1rem;">
+              <h3 class="font-display" style="color: var(--primary); font-size: 1.1rem; margin-top: 0; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem; font-weight: 700; border-bottom: 1.5px solid var(--border-color); padding-bottom: 0.75rem;">
+                <i class="fa-solid fa-id-card" style="color: var(--accent);"></i> Select Facilitator
+              </h3>
+
+              <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label for="allocationLecturerSelect" style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Lecturer Profile</label>
+                <select id="allocationLecturerSelect" class="form-control" style="width: 100%; padding: 0.75rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+                  <option value="">-- Choose Lecturer --</option>
+                </select>
+              </div>
+
+              <!-- Selected Lecturer Meta Profile Display -->
+              <div id="allocationLecMetaDisplay" style="display: none; background-color: var(--bg-slate); padding: 1rem; border-radius: 6px; border: 1px solid var(--border-color); font-size: 0.85rem;">
+                <div style="margin-bottom: 0.5rem;"><strong>Dept:</strong> <span id="allocMetaDept" style="color: var(--primary);">Theology</span></div>
+                <div style="margin-bottom: 0.5rem;"><strong>Position:</strong> <span id="allocMetaPos">Dean</span></div>
+                <div style="margin-bottom: 0.5rem;"><strong>Email:</strong> <span id="allocMetaEmail" style="word-break: break-all;">-</span></div>
+                <div style="font-weight: 600; color: var(--primary); margin-top: 0.75rem; display: flex; align-items: center; gap: 0.25rem;">
+                  <i class="fa-solid fa-graduation-cap"></i> Allocated Courses: <span id="allocMetaCount" style="color: var(--accent);">0</span>
+                </div>
+              </div>
+
+              <!-- Submit Action Box (Icons Only!) -->
+              <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem; border-top: 1.5px solid var(--border-color); padding-top: 1rem;">
+                <button id="btnSaveCourseAllocation" class="btn" title="Save Course Allocations" style="background-color: #1F3B82; color: white; border: none; width: 44px; height: 44px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.15rem; transition: background-color 0.2s;" disabled>
+                  <i class="fa-solid fa-floppy-disk"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Active Courses Grid Checkbox Section -->
+            <div class="portal-support-card" style="background-color: var(--bg-white); padding: 2rem; border-radius: 6px; border: 1.5px solid var(--border-color);">
+              <h3 class="font-display" style="color: var(--primary); font-size: 1.2rem; margin-top: 0; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; font-weight: 700; border-bottom: 1.5px solid var(--border-color); padding-bottom: 1rem;">
+                <span style="display: flex; align-items: center; gap: 0.5rem;">
+                  <i class="fa-solid fa-book-open-reader" style="color: var(--accent);"></i> Active Syllabus Curriculum
+                </span>
+                <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;" id="allocSelectedCoursesCountDisplay">0 selected</span>
+              </h3>
+
+              <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; align-items: center; background-color: var(--bg-slate); padding: 0.75rem 1rem; border-radius: 6px; border: 1px solid var(--border-color);">
+                <span style="font-size: 0.8rem; font-weight: 700; color: var(--primary); text-transform: uppercase;">Bulk:</span>
+                <button id="btnAllocSelectAll" class="btn btn-outline-primary" style="padding: 0.25rem 0.6rem; font-size: 0.75rem; border-radius: 4px; background: transparent; cursor: pointer; border: 1px solid var(--primary); font-family: 'Poppins'; color: var(--primary); font-weight: 600;" disabled>Select All</button>
+                <button id="btnAllocClearAll" class="btn btn-outline-primary" style="padding: 0.25rem 0.6rem; font-size: 0.75rem; border-radius: 4px; background: transparent; cursor: pointer; border: 1px solid var(--primary); font-family: 'Poppins'; color: var(--primary); font-weight: 600;" disabled>Clear All</button>
+              </div>
+
+              <!-- Courses Checkboxes by Semester -->
+              <div id="allocCoursesContainer" style="display: flex; flex-direction: column; gap: 1.5rem;">
+                <!-- Dynamically populated grouped by First / Second Semester -->
+                <div style="color: var(--text-muted); font-size: 0.95rem; text-align: center; padding: 2rem;">
+                  <i class="fa-solid fa-arrow-left" style="margin-right: 0.5rem; color: var(--accent);"></i> Select a facilitator on the left to activate syllabus allocation fields.
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
       </main>
     </div>
   </div>
@@ -1723,6 +1938,83 @@
             <div id="editCourseAllocationCheckboxes" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.5rem; max-height: 180px; overflow-y: auto; padding: 0.75rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px;">
               <!-- Generated dynamically -->
             </div>
+          </div>
+
+          <!-- Action buttons inside modal - Icons Only! -->
+          <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+            <button type="submit" class="btn" title="Save Changes" style="background-color: #1F3B82; color: white; border: none; width: 44px; height: 44px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.15rem; transition: background-color 0.2s;"><i class="fa-solid fa-floppy-disk"></i></button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Course Edit Modal -->
+  <div class="modal-overlay" id="courseEditModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+    <div class="modal-card" style="background-color: var(--bg-white); border-radius: 8px; width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.15); border: 2px solid var(--border-color);">
+      <div style="background-color: var(--primary); color: white; padding: 1.25rem 1.5rem; display: flex; justify-content: space-between; align-items: center; border-top-left-radius: 6px; border-top-right-radius: 6px;">
+        <h3 class="font-display" style="margin: 0; font-size: 1.15rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;"><i class="fa-solid fa-pen-to-square"></i> Modify Course Module</h3>
+        <button id="btnCancelCourseEdit" class="btn" type="button" title="Close modal" style="background: transparent; border: none; color: white; font-size: 1.2rem; cursor: pointer; padding: 0; line-height: 1;"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div style="padding: 1.5rem;">
+        <form id="editCourseForm">
+          <input type="hidden" id="editCourseId">
+          
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+            
+            <div class="form-group">
+              <label for="editCourseCode" style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.25rem;">Course Code (Read-Only)</label>
+              <input type="text" id="editCourseCode" class="form-control" style="width: 100%; padding: 0.6rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" readonly disabled>
+            </div>
+
+            <div class="form-group" style="grid-column: span 2;">
+              <label for="editCourseTitle" style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.25rem;">Course Title</label>
+              <input type="text" id="editCourseTitle" class="form-control" style="width: 100%; padding: 0.6rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+            </div>
+
+            <div class="form-group">
+              <label for="editCourseSemester" style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.25rem;">Semester</label>
+              <select id="editCourseSemester" class="form-control" style="width: 100%; padding: 0.6rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+                <option value="First Semester">First Semester</option>
+                <option value="Second Semester">Second Semester</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="editCourseCredit" style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.25rem;">Credit Units</label>
+              <select id="editCourseCredit" class="form-control" style="width: 100%; padding: 0.6rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+                <option value="1">1 Credit Unit</option>
+                <option value="2">2 Credit Units</option>
+                <option value="3">3 Credit Units</option>
+                <option value="4">4 Credit Units</option>
+                <option value="5">5 Credit Units</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="editCourseDept" style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.25rem;">Department</label>
+              <select id="editCourseDept" class="form-control" style="width: 100%; padding: 0.6rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+                <option value="Theology">Theology</option>
+                <option value="Biblical Studies">Biblical Studies</option>
+                <option value="Christian Education">Christian Education</option>
+                <option value="Missions & Evangelism">Missions & Evangelism</option>
+                <option value="Pastoral Ministry">Pastoral Ministry</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="editCourseStatus" style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.25rem;">Course Status</label>
+              <select id="editCourseStatus" class="form-control" style="width: 100%; padding: 0.6rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif;" required>
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+            </div>
+
+            <div class="form-group" style="grid-column: span 3;">
+              <label for="editCourseDesc" style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase; display: block; margin-bottom: 0.25rem;">Course Description</label>
+              <textarea id="editCourseDesc" rows="3" class="form-control" style="width: 100%; padding: 0.6rem; background-color: var(--bg-slate); border: 1.5px solid var(--border-color); border-radius: 6px; font-family: 'Poppins', sans-serif; resize: vertical;" required></textarea>
+            </div>
+
           </div>
 
           <!-- Action buttons inside modal - Icons Only! -->

@@ -146,6 +146,7 @@ function switchTab(tabId) {
   if (tabId === "students") renderStudentsTab();
   if (tabId === "results") renderResultUploadTab();
   if (tabId === "notifications") renderAnnouncementsTab();
+  if (tabId === "cbt-management") renderCbtManagementTab();
 }
 
 // Session Validator
@@ -1161,3 +1162,657 @@ const btnLogout = document.getElementById("btnLogout");
 if (btnLogout) {
   btnLogout.addEventListener("click", () => window.handleLogout());
 }
+
+// ==========================================
+// COMPUTER-BASED TEST (CBT) MANAGEMENT MODULE
+// ==========================================
+
+let activeCbtSubtab = "question-bank";
+let questionBankData = [];
+let examinationsData = [];
+
+// Entry point when CBT Management Tab is clicked
+async function renderCbtManagementTab() {
+  if (!currentLecturerDoc) {
+    window.showToast("Authenticate first to access CBT module.", "error");
+    return;
+  }
+
+  // Set default values for session and semester in forms
+  const qSession = document.getElementById("qSession");
+  if (qSession) qSession.value = timelineSettings.session;
+  
+  const examSession = document.getElementById("examSession");
+  if (examSession) examSession.value = timelineSettings.session;
+
+  const qSemester = document.getElementById("qSemester");
+  if (qSemester) qSemester.value = timelineSettings.semester;
+
+  const examSemester = document.getElementById("examSemester");
+  if (examSemester) examSemester.value = timelineSettings.semester;
+
+  // Populate course dropdown selectors
+  populateCbtCourseSelectors();
+
+  // Setup Sub-tabs navigation
+  setupCbtSubtabs();
+
+  // Load Question Bank & Exams
+  await loadQuestionBank();
+  await loadExaminations();
+
+  // Initial rendering of current sub-tab
+  switchCbtSubtab(activeCbtSubtab);
+}
+
+// Populate selectors with lecturer's assigned courses
+function populateCbtCourseSelectors() {
+  const assigned = currentLecturerDoc.coursesAssigned || [];
+  const qCourseSelect = document.getElementById("qCourseSelect");
+  const examCourse = document.getElementById("examCourse");
+  const filterQCourse = document.getElementById("filterQCourse");
+
+  let optionsHtml = assigned.map(c => `<option value="${c}">${c}</option>`).join("");
+  
+  if (assigned.length === 0) {
+    optionsHtml = `<option value="">No assigned courses</option>`;
+  }
+
+  if (qCourseSelect) qCourseSelect.innerHTML = optionsHtml;
+  if (examCourse) examCourse.innerHTML = optionsHtml;
+  
+  if (filterQCourse) {
+    filterQCourse.innerHTML = `<option value="all">All My Courses</option>` + 
+      assigned.map(c => `<option value="${c}">${c}</option>`).join("");
+  }
+}
+
+// Setup Sub-tabs navigation and listeners
+function setupCbtSubtabs() {
+  const btns = document.querySelectorAll(".cbt-sub-tab-btn");
+  btns.forEach(btn => {
+    // Avoid double binding
+    const newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
+
+    newBtn.addEventListener("click", () => {
+      const subtab = newBtn.getAttribute("data-subtab");
+      switchCbtSubtab(subtab);
+    });
+  });
+}
+
+// Switch and render sub-tab views
+function switchCbtSubtab(subtabId) {
+  activeCbtSubtab = subtabId;
+  
+  // Style pill buttons
+  const btns = document.querySelectorAll(".cbt-sub-tab-btn");
+  btns.forEach(btn => {
+    if (btn.getAttribute("data-subtab") === subtabId) {
+      btn.style.backgroundColor = "#1F3B82";
+      btn.style.color = "white";
+      btn.style.border = "none";
+      btn.classList.add("active");
+    } else {
+      btn.style.backgroundColor = "transparent";
+      btn.style.color = "var(--text-muted)";
+      btn.style.border = "1.5px solid var(--border-color)";
+      btn.classList.remove("active");
+    }
+  });
+
+  // Toggle sub-tab content blocks
+  const contents = document.querySelectorAll(".cbt-subtab-content");
+  contents.forEach(content => {
+    if (content.id === `cbt-subtab-${subtabId}`) {
+      content.style.display = "block";
+    } else {
+      content.style.display = "none";
+    }
+  });
+
+  // Load sub-tab specific data / lists
+  if (subtabId === "question-bank") {
+    renderQuestionBankList();
+  } else if (subtabId === "scheduled-exams") {
+    renderScheduledExamsList();
+  } else if (subtabId === "results-stats") {
+    populateResultsExamDropdown();
+  }
+}
+
+// ==========================================
+// SECTION A: QUESTION BANK OPERATIONS
+// ==========================================
+
+async function loadQuestionBank() {
+  try {
+    const qSnap = await getDocs(query(collection(db, "questionBank"), where("lecturerId", "==", currentLecturerDoc.lecturerId)));
+    questionBankData = qSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (err) {
+    console.error("Failed to load question bank:", err);
+  }
+}
+
+function renderQuestionBankList() {
+  const tableBody = document.getElementById("qBankTableBody");
+  if (!tableBody) return;
+
+  const filterCourse = document.getElementById("filterQCourse")?.value || "all";
+  const searchText = document.getElementById("searchQText")?.value.toLowerCase() || "";
+
+  let filtered = questionBankData;
+  if (filterCourse !== "all") {
+    filtered = filtered.filter(q => q.courseCode === filterCourse);
+  }
+  if (searchText) {
+    filtered = filtered.filter(q => q.question.toLowerCase().includes(searchText));
+  }
+
+  if (filtered.length === 0) {
+    tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 2.5rem; color: var(--text-muted);"><i class="fa-solid fa-face-meh" style="font-size: 2rem; opacity: 0.3; display: block; margin-bottom: 0.5rem;"></i> No questions matching this filter criteria.</td></tr>`;
+    return;
+  }
+
+  tableBody.innerHTML = filtered.map(q => `
+    <tr style="border-bottom: 1px solid var(--border-color); hover:background-color:var(--bg-slate);">
+      <td style="padding: 0.85rem; font-weight: 700; color: var(--primary); vertical-align: top;">${q.courseCode}</td>
+      <td style="padding: 0.85rem; vertical-align: top;">
+        <div style="font-weight: 600; color: var(--text-dark); margin-bottom: 0.5rem;">${escapeHtml(q.question)}</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.25rem 1rem; font-size: 0.78rem; color: var(--text-muted); padding-left: 0.5rem; border-left: 2px solid var(--border-color);">
+          <div><strong style="color: ${q.correctAnswer === 'A' ? 'green' : 'inherit'}">A:</strong> ${escapeHtml(q.optionA)}</div>
+          <div><strong style="color: ${q.correctAnswer === 'B' ? 'green' : 'inherit'}">B:</strong> ${escapeHtml(q.optionB)}</div>
+          <div><strong style="color: ${q.correctAnswer === 'C' ? 'green' : 'inherit'}">C:</strong> ${escapeHtml(q.optionC)}</div>
+          <div><strong style="color: ${q.correctAnswer === 'D' ? 'green' : 'inherit'}">D:</strong> ${escapeHtml(q.optionD)}</div>
+        </div>
+        ${q.explanation ? `<div style="font-size: 0.72rem; color: var(--accent); margin-top: 0.5rem; font-style: italic;"><strong>Explanation:</strong> ${escapeHtml(q.explanation)}</div>` : ''}
+      </td>
+      <td style="padding: 0.85rem; text-align: center; vertical-align: top; font-weight: 700; color: var(--primary);">${q.marks}</td>
+      <td style="padding: 0.85rem; text-align: center; vertical-align: top;">
+        <div style="display: flex; gap: 0.5rem; justify-content: center;">
+          <button class="btn btn-edit-question" data-id="${q.id}" title="Edit Question" style="background-color: var(--primary); color: white; border: none; width: 32px; height: 32px; border-radius: 4px; cursor: pointer;"><i class="fa-solid fa-pen-to-square"></i></button>
+          <button class="btn btn-preview-question" data-id="${q.id}" title="Preview" style="background-color: #F4B000; color: var(--primary-dark); border: none; width: 32px; height: 32px; border-radius: 4px; cursor: pointer;"><i class="fa-solid fa-eye"></i></button>
+          <button class="btn btn-delete-question" data-id="${q.id}" title="Delete" style="background-color: var(--danger-color, #DC3545); color: white; border: none; width: 32px; height: 32px; border-radius: 4px; cursor: pointer;"><i class="fa-solid fa-trash"></i></button>
+        </div>
+      </td>
+    </tr>
+  `).join("");
+
+  // Bind Question bank actions
+  document.querySelectorAll(".btn-edit-question").forEach(btn => {
+    btn.addEventListener("click", () => editQuestion(btn.getAttribute("data-id")));
+  });
+
+  document.querySelectorAll(".btn-preview-question").forEach(btn => {
+    btn.addEventListener("click", () => previewQuestion(btn.getAttribute("data-id")));
+  });
+
+  document.querySelectorAll(".btn-delete-question").forEach(btn => {
+    btn.addEventListener("click", () => deleteQuestion(btn.getAttribute("data-id")));
+  });
+}
+
+// Question Bank CRUD handlers
+const qBankForm = document.getElementById("qBankForm");
+if (qBankForm) {
+  qBankForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!currentLecturerDoc) return;
+
+    const qIdVal = document.getElementById("qId").value;
+    const data = {
+      courseCode: document.getElementById("qCourseSelect").value,
+      academicSession: document.getElementById("qSession").value,
+      semester: document.getElementById("qSemester").value,
+      question: document.getElementById("qText").value.trim(),
+      optionA: document.getElementById("qOptA").value.trim(),
+      optionB: document.getElementById("qOptB").value.trim(),
+      optionC: document.getElementById("qOptC").value.trim(),
+      optionD: document.getElementById("qOptD").value.trim(),
+      correctAnswer: document.getElementById("qCorrectAnswer").value,
+      marks: parseInt(document.getElementById("qMarks").value) || 1,
+      explanation: document.getElementById("qExplanation").value.trim(),
+      lecturerId: currentLecturerDoc.lecturerId,
+      updatedAt: new Date().toISOString()
+    };
+
+    try {
+      const qRef = qIdVal ? doc(db, "questionBank", qIdVal) : doc(collection(db, "questionBank"));
+      if (!qIdVal) {
+        data.createdAt = new Date().toISOString();
+      }
+      
+      await setDoc(qRef, data, { merge: true });
+      window.showToast("Question successfully saved to Syllabus Bank.", "success");
+      
+      resetQuestionForm();
+      await loadQuestionBank();
+      renderQuestionBankList();
+    } catch (err) {
+      console.error("Save question error:", err);
+      window.showToast("Failed to commit question parameters: " + err.message, "error");
+    }
+  });
+}
+
+document.getElementById("btnResetQForm")?.addEventListener("click", () => {
+  resetQuestionForm();
+});
+
+// Filter triggers
+document.getElementById("filterQCourse")?.addEventListener("change", () => renderQuestionBankList());
+document.getElementById("searchQText")?.addEventListener("input", () => renderQuestionBankList());
+
+function resetQuestionForm() {
+  if (qBankForm) qBankForm.reset();
+  document.getElementById("qId").value = "";
+  document.getElementById("qFormTitle").innerHTML = `<i class="fa-solid fa-circle-question" style="color: var(--accent);"></i> New Question`;
+  const qSession = document.getElementById("qSession");
+  if (qSession) qSession.value = timelineSettings.session;
+  const qSemester = document.getElementById("qSemester");
+  if (qSemester) qSemester.value = timelineSettings.semester;
+}
+
+function editQuestion(id) {
+  const q = questionBankData.find(item => item.id === id);
+  if (!q) return;
+
+  document.getElementById("qId").value = q.id;
+  document.getElementById("qCourseSelect").value = q.courseCode;
+  document.getElementById("qSession").value = q.academicSession;
+  document.getElementById("qSemester").value = q.semester;
+  document.getElementById("qText").value = q.question;
+  document.getElementById("qOptA").value = q.optionA;
+  document.getElementById("qOptB").value = q.optionB;
+  document.getElementById("qOptC").value = q.optionC;
+  document.getElementById("qOptD").value = q.optionD;
+  document.getElementById("qCorrectAnswer").value = q.correctAnswer;
+  document.getElementById("qMarks").value = q.marks;
+  document.getElementById("qExplanation").value = q.explanation || "";
+
+  document.getElementById("qFormTitle").innerHTML = `<i class="fa-solid fa-pen-to-square" style="color: var(--accent);"></i> Edit Question`;
+  window.showToast("Question coordinates populated for revision.", "info");
+}
+
+function previewQuestion(id) {
+  const q = questionBankData.find(item => item.id === id);
+  if (!q) return;
+
+  alert(`[QUESTION PREVIEW - ${q.courseCode}]\n\nQuestion: ${q.question}\n\n[A] ${q.optionA}\n[B] ${q.optionB}\n[C] ${q.optionC}\n[D] ${q.optionD}\n\nCorrect Answer: Option [${q.correctAnswer}]\nMarks Allocated: ${q.marks} marks\n\nExplanation:\n${q.explanation || 'None provided.'}`);
+}
+
+async function deleteQuestion(id) {
+  if (!confirm("⚠️ Are you sure you want to delete this question? This action is permanent.")) return;
+
+  try {
+    const { deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
+    await deleteDoc(doc(db, "questionBank", id));
+    window.showToast("Question successfully purged.", "success");
+    await loadQuestionBank();
+    renderQuestionBankList();
+  } catch (err) {
+    console.error("Delete question error:", err);
+    window.showToast("Purge failed: " + err.message, "error");
+  }
+}
+
+// ==========================================
+// SECTION B: CREATE / MODIFY EXAMINATIONS
+// ==========================================
+
+async function loadExaminations() {
+  try {
+    const examSnap = await getDocs(query(collection(db, "examinations"), where("lecturerId", "==", currentLecturerDoc.lecturerId)));
+    examinationsData = examSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (err) {
+    console.error("Failed to load examinations:", err);
+  }
+}
+
+const createExamForm = document.getElementById("createExamForm");
+if (createExamForm) {
+  createExamForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!currentLecturerDoc) return;
+
+    const examIdVal = document.getElementById("examId").value;
+    const courseCode = document.getElementById("examCourse").value;
+    const numQuestions = parseInt(document.getElementById("examNumQuestions").value) || 20;
+
+    // Validation: Lecturer should have enough questions in the Question Bank for this course!
+    const availableQuestions = questionBankData.filter(q => q.courseCode === courseCode);
+    if (availableQuestions.length < numQuestions) {
+      alert(`⚠️ Question Bank Deficit!\n\nYou have requested ${numQuestions} questions, but only ${availableQuestions.length} questions exist in your Question Bank for course ${courseCode}.\n\nPlease add more questions first, or decrease the requested exam question size.`);
+      return;
+    }
+
+    const data = {
+      courseCode: courseCode,
+      academicSession: document.getElementById("examSession").value,
+      semester: document.getElementById("examSemester").value,
+      title: document.getElementById("examTitle").value.trim(),
+      duration: parseInt(document.getElementById("examDuration").value) || 60,
+      numQuestions: numQuestions,
+      startDate: document.getElementById("examOpenDate").value,
+      endDate: document.getElementById("examCloseDate").value,
+      randomizeQuestions: document.getElementById("examRandQuestions").value === "Yes",
+      randomizeOptions: document.getElementById("examRandOptions").value === "Yes",
+      showResultImmediately: document.getElementById("examShowResult").value === "Yes",
+      status: document.getElementById("examStatus").value,
+      lecturerId: currentLecturerDoc.lecturerId,
+      updatedAt: new Date().toISOString()
+    };
+
+    try {
+      const examRef = examIdVal ? doc(db, "examinations", examIdVal) : doc(collection(db, "examinations"));
+      if (!examIdVal) {
+        data.createdAt = new Date().toISOString();
+      }
+
+      await setDoc(examRef, data, { merge: true });
+      window.showToast("Examination configuration successfully registered.", "success");
+
+      resetExamForm();
+      await loadExaminations();
+      switchCbtSubtab("scheduled-exams");
+    } catch (err) {
+      console.error("Save exam error:", err);
+      window.showToast("Failed to save examination parameters: " + err.message, "error");
+    }
+  });
+}
+
+document.getElementById("btnCancelExamForm")?.addEventListener("click", () => {
+  resetExamForm();
+  switchCbtSubtab("scheduled-exams");
+});
+
+function resetExamForm() {
+  if (createExamForm) createExamForm.reset();
+  document.getElementById("examId").value = "";
+  
+  const examSession = document.getElementById("examSession");
+  if (examSession) examSession.value = timelineSettings.session;
+  const examSemester = document.getElementById("examSemester");
+  if (examSemester) examSemester.value = timelineSettings.semester;
+}
+
+// ==========================================
+// SECTION C: SCHEDULED EXAMINATIONS LIST
+// ==========================================
+
+function renderScheduledExamsList() {
+  const tableBody = document.getElementById("scheduledExamsTableBody");
+  if (!tableBody) return;
+
+  if (examinationsData.length === 0) {
+    tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 2.5rem; color: var(--text-muted);"><i class="fa-solid fa-calendar-times" style="font-size: 2.5rem; opacity: 0.3; display: block; margin-bottom: 0.5rem;"></i> No assessment configurations found.</td></tr>`;
+    return;
+  }
+
+  tableBody.innerHTML = examinationsData.map(ex => {
+    let statusClass = "status-badge pending";
+    if (ex.status === "Published") statusClass = "status-badge cleared";
+    if (ex.status === "Closed") statusClass = "status-badge"; // neutral grey
+
+    const formattedStart = formatCbtDate(ex.startDate);
+    const formattedEnd = formatCbtDate(ex.endDate);
+
+    return `
+      <tr style="border-bottom: 1px solid var(--border-color);">
+        <td style="padding: 0.85rem; font-weight: 700; color: var(--primary);">${ex.courseCode}</td>
+        <td style="padding: 0.85rem; font-weight: 600;">${escapeHtml(ex.title)}</td>
+        <td style="padding: 0.85rem; font-size: 0.78rem;">
+          <div><strong>Start:</strong> ${formattedStart}</div>
+          <div><strong>End:</strong> ${formattedEnd}</div>
+        </td>
+        <td style="padding: 0.85rem; text-align: center;">${ex.duration} mins</td>
+        <td style="padding: 0.85rem; text-align: center; font-weight: 600;">${ex.numQuestions} Qs</td>
+        <td style="padding: 0.85rem; text-align: center;">
+          <span class="${statusClass}" style="display: inline-block; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight:700; font-size: 0.7rem;">${ex.status}</span>
+        </td>
+        <td style="padding: 0.85rem; text-align: center;">
+          <div style="display: flex; gap: 0.4rem; justify-content: center;">
+            ${ex.status === 'Draft' ? `<button class="btn btn-action-publish" data-id="${ex.id}" title="Publish Exam" style="background-color: #28A745; color: white; border: none; width: 30px; height: 30px; border-radius: 4px; cursor: pointer;"><i class="fa-solid fa-circle-check"></i></button>` : ''}
+            ${ex.status === 'Published' ? `<button class="btn btn-action-close" data-id="${ex.id}" title="Close Exam" style="background-color: #DC3545; color: white; border: none; width: 30px; height: 30px; border-radius: 4px; cursor: pointer;"><i class="fa-solid fa-circle-xmark"></i></button>` : ''}
+            <button class="btn btn-action-edit" data-id="${ex.id}" title="Edit" style="background-color: var(--primary); color: white; border: none; width: 30px; height: 30px; border-radius: 4px; cursor: pointer;"><i class="fa-solid fa-pen"></i></button>
+            <button class="btn btn-action-delete" data-id="${ex.id}" title="Delete" style="background-color: #555; color: white; border: none; width: 30px; height: 30px; border-radius: 4px; cursor: pointer;"><i class="fa-solid fa-trash"></i></button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join("");
+
+  // Bind Exam Action listeners
+  document.querySelectorAll(".btn-action-publish").forEach(btn => {
+    btn.addEventListener("click", () => updateExamStatus(btn.getAttribute("data-id"), "Published"));
+  });
+
+  document.querySelectorAll(".btn-action-close").forEach(btn => {
+    btn.addEventListener("click", () => updateExamStatus(btn.getAttribute("data-id"), "Closed"));
+  });
+
+  document.querySelectorAll(".btn-action-edit").forEach(btn => {
+    btn.addEventListener("click", () => editExam(btn.getAttribute("data-id")));
+  });
+
+  document.querySelectorAll(".btn-action-delete").forEach(btn => {
+    btn.addEventListener("click", () => deleteExam(btn.getAttribute("data-id")));
+  });
+}
+
+async function updateExamStatus(id, newStatus) {
+  try {
+    await updateDoc(doc(db, "examinations", id), { status: newStatus, updatedAt: new Date().toISOString() });
+    window.showToast(`Assessment status set to [${newStatus}].`, "success");
+    await loadExaminations();
+    renderScheduledExamsList();
+  } catch (err) {
+    console.error("Update status error:", err);
+    window.showToast("Failed to alter status: " + err.message, "error");
+  }
+}
+
+function editExam(id) {
+  const ex = examinationsData.find(item => item.id === id);
+  if (!ex) return;
+
+  document.getElementById("examId").value = ex.id;
+  document.getElementById("examCourse").value = ex.courseCode;
+  document.getElementById("examSession").value = ex.academicSession;
+  document.getElementById("examSemester").value = ex.semester;
+  document.getElementById("examTitle").value = ex.title;
+  document.getElementById("examDuration").value = ex.duration;
+  document.getElementById("examNumQuestions").value = ex.numQuestions;
+  document.getElementById("examOpenDate").value = ex.startDate;
+  document.getElementById("examCloseDate").value = ex.endDate;
+  document.getElementById("examRandQuestions").value = ex.randomizeQuestions ? "Yes" : "No";
+  document.getElementById("examRandOptions").value = ex.randomizeOptions ? "Yes" : "No";
+  document.getElementById("examShowResult").value = ex.showResultImmediately ? "Yes" : "No";
+  document.getElementById("examStatus").value = ex.status;
+
+  switchCbtSubtab("create-exam");
+  window.showToast("Assessment configuration loaded for editing.", "info");
+}
+
+async function deleteExam(id) {
+  if (!confirm("⚠️ Confirm Assessment Purge\n\nAre you sure you want to permanently delete this examination?")) return;
+
+  try {
+    const { deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
+    await deleteDoc(doc(db, "examinations", id));
+    window.showToast("Examination configuration successfully deleted.", "success");
+    await loadExaminations();
+    renderScheduledExamsList();
+  } catch (err) {
+    console.error("Delete exam error:", err);
+    window.showToast("Failed to delete exam: " + err.message, "error");
+  }
+}
+
+// ==========================================
+// SECTION D: RESULTS & STATISTICS
+// ==========================================
+
+let activeResultsList = [];
+
+function populateResultsExamDropdown() {
+  const select = document.getElementById("resultsExamSelect");
+  if (!select) return;
+
+  const currentVal = select.value;
+  select.innerHTML = `<option value="">-- Choose Examination --</option>` +
+    examinationsData.map(ex => `<option value="${ex.id}">[${ex.courseCode}] ${escapeHtml(ex.title)}</option>`).join("");
+  
+  select.value = currentVal;
+
+  // Setup selector listener (one time)
+  if (!select.dataset.listenerBound) {
+    select.addEventListener("change", (e) => loadSelectedExamResults(e.target.value));
+    select.dataset.listenerBound = "true";
+  }
+}
+
+async function loadSelectedExamResults(examId) {
+  const tableBody = document.getElementById("cbtResultsTableBody");
+  const exportBtn = document.getElementById("btnExportCbtResults");
+  if (!tableBody) return;
+
+  if (!examId) {
+    tableBody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-muted);">Please select an examination from the dropdown above.</td></tr>`;
+    if (exportBtn) exportBtn.disabled = true;
+    resetCbtStatsCounters();
+    return;
+  }
+
+  tableBody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-muted);">Fetching results data...</td></tr>`;
+
+  try {
+    const rSnap = await getDocs(query(collection(db, "examinationResults"), where("examId", "==", examId)));
+    activeResultsList = rSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    if (activeResultsList.length === 0) {
+      tableBody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 2.5rem; color: var(--text-muted);"><i class="fa-solid fa-graduation-cap" style="font-size: 2rem; opacity: 0.3; display: block; margin-bottom: 0.5rem;"></i> No students have submitted answers for this examination yet.</td></tr>`;
+      if (exportBtn) exportBtn.disabled = true;
+      resetCbtStatsCounters();
+      return;
+    }
+
+    if (exportBtn) exportBtn.disabled = false;
+    calculateAndRenderCbtStats();
+
+    tableBody.innerHTML = activeResultsList.map(res => `
+      <tr style="border-bottom: 1px solid var(--border-color);">
+        <td style="padding: 0.75rem;">${res.studentId}</td>
+        <td style="padding: 0.75rem; font-weight: 600;">${escapeHtml(res.studentName)}</td>
+        <td style="padding: 0.75rem;">${res.studentMatric}</td>
+        <td style="padding: 0.75rem; text-align: center; font-weight: 700; color: var(--primary);">${res.score} / ${res.totalQuestions}</td>
+        <td style="padding: 0.75rem; text-align: center; font-weight: 600;">${res.percentage}%</td>
+        <td style="padding: 0.75rem; text-align: center; font-weight: 700;">${res.grade}</td>
+        <td style="padding: 0.75rem; text-align: center;">
+          <span class="status-badge ${res.passed ? 'cleared' : ''}" style="display:inline-block; font-size:0.7rem; font-weight:700; background-color: ${res.passed ? 'rgba(40,167,69,0.1)' : 'rgba(220,53,69,0.1)'}; color: ${res.passed ? '#28a745' : '#dc3545'}">${res.passed ? 'PASS' : 'FAIL'}</span>
+        </td>
+        <td style="padding: 0.75rem; text-align: center; font-size: 0.75rem; color: var(--text-muted);">${formatCbtDate(res.submittedAt)}</td>
+      </tr>
+    `).join("");
+
+  } catch (err) {
+    console.error("Load exam results error:", err);
+    tableBody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 2rem; color: var(--danger-color);">Error fetching results: ${err.message}</td></tr>`;
+  }
+}
+
+function calculateAndRenderCbtStats() {
+  if (activeResultsList.length === 0) return;
+
+  const total = activeResultsList.length;
+  const percentages = activeResultsList.map(r => r.percentage);
+  
+  const sum = percentages.reduce((a, b) => a + b, 0);
+  const avg = Math.round(sum / total);
+
+  const max = Math.max(...percentages);
+  const min = Math.min(...percentages);
+
+  const passes = activeResultsList.filter(r => r.passed).length;
+  const fails = total - passes;
+
+  const passRate = Math.round((passes / total) * 100);
+  const failRate = 100 - passRate;
+
+  document.getElementById("statCbtTotalStudents").textContent = total;
+  document.getElementById("statCbtAvgScore").textContent = `${avg}%`;
+  document.getElementById("statCbtHighLow").textContent = `${max}% / ${min}%`;
+  document.getElementById("statCbtPassRate").textContent = `${passRate}%`;
+  document.getElementById("statCbtFailRate").textContent = `${failRate}%`;
+}
+
+function resetCbtStatsCounters() {
+  document.getElementById("statCbtTotalStudents").textContent = "0";
+  document.getElementById("statCbtAvgScore").textContent = "0%";
+  document.getElementById("statCbtHighLow").textContent = "0% / 0%";
+  document.getElementById("statCbtPassRate").textContent = "0%";
+  document.getElementById("statCbtFailRate").textContent = "0%";
+}
+
+// CSV Export Utility
+document.getElementById("btnExportCbtResults")?.addEventListener("click", () => {
+  if (activeResultsList.length === 0) return;
+
+  const examSelect = document.getElementById("resultsExamSelect");
+  const examText = examSelect ? examSelect.options[examSelect.selectedIndex].text : "cbt_examination";
+  const fileName = `${examText.replace(/[\s/]+/g, "_").toLowerCase()}_results.csv`;
+
+  const headers = ["Student ID", "Full Name", "Matric Number", "Score", "Total Qs", "Percentage (%)", "Grade", "Status", "Submitted At"];
+  const rows = activeResultsList.map(r => [
+    r.studentId,
+    r.studentName,
+    r.studentMatric,
+    r.score,
+    r.totalQuestions,
+    r.percentage,
+    r.grade,
+    r.passed ? "PASS" : "FAIL",
+    r.submittedAt
+  ]);
+
+  let csvContent = "data:text/csv;charset=utf-8," 
+    + [headers.join(","), ...rows.map(e => e.map(val => `"${String(val).replace(/"/g, '""')}"`).join(","))].join("\n");
+
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement("a");
+  link.setAttribute("href", encodedUri);
+  link.setAttribute("download", fileName);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.showToast("Results successfully exported as CSV spreadsheet.", "success");
+});
+
+// Helper formatting functions
+function formatCbtDate(dateString) {
+  if (!dateString) return "-";
+  try {
+    const d = new Date(dateString);
+    return d.toLocaleString('en-US', { hour12: true, month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  } catch (e) {
+    return dateString;
+  }
+}
+
+function escapeHtml(text) {
+  if (!text) return "";
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+}
+
+// Global hook to make functions available if called from other inline handlers
+window.renderCbtManagementTab = renderCbtManagementTab;
+
