@@ -142,6 +142,8 @@ function switchTab(tabId) {
   });
 
   // Re-fetch tab specific data if required
+  if (tabId === "overview") loadCoreDashboardMetrics();
+  if (tabId === "profile") renderProfileTab();
   if (tabId === "courses") renderCoursesTab();
   if (tabId === "students") renderStudentsTab();
   if (tabId === "results") renderResultUploadTab();
@@ -336,6 +338,12 @@ async function enterDashboard() {
   // Populate dynamic filters dropdowns
   populateFilterDropdowns();
 
+  // Bind Dashboard Stat Cards to switch tabs
+  document.getElementById("cardAssignedCoursesBtn")?.addEventListener("click", () => switchTab("courses"));
+  document.getElementById("cardRegisteredStudentsBtn")?.addEventListener("click", () => switchTab("students"));
+  document.getElementById("cardUploadedResultsBtn")?.addEventListener("click", () => switchTab("results"));
+  document.getElementById("cardNotificationsBtn")?.addEventListener("click", () => switchTab("notifications"));
+
   // Initialize general data
   await loadCoreDashboardMetrics();
   switchTab("overview");
@@ -480,11 +488,9 @@ function populateFilterDropdowns() {
 
 // Tab 2: Profile Load & Edit
 const profileForm = document.getElementById("lecturerProfileForm");
-if (profileForm) {
-  // Pre-populate read-only details
-  switchTab("overview"); // Initialize tabs
+async function renderProfileTab() {
+  if (!currentLecturerDoc) return;
   
-  // Set values on overview profiles too
   document.getElementById("profileLecturerId").textContent = currentLecturerDoc.lecturerId || "N/A";
   document.getElementById("profileFullName").textContent = currentLecturerDoc.fullName || "N/A";
   document.getElementById("profileDepartment").textContent = currentLecturerDoc.department || "N/A";
@@ -503,7 +509,12 @@ if (profileForm) {
   // Pre-fill fields
   document.getElementById("profilePhone").value = currentLecturerDoc.phone || "";
   document.getElementById("profileEmail").value = currentLecturerDoc.email || "";
+}
 
+if (profileForm) {
+  // Pre-populate read-only details
+  switchTab("overview"); // Initialize tabs
+  
   // Handle Photo Upload
   const photoInput = document.getElementById("profilePhotoInput");
   if (photoInput) {
@@ -526,6 +537,7 @@ if (profileForm) {
           await updateDoc(docRef, { passportPhoto: base64String });
           
           currentLecturerDoc.passportPhoto = base64String;
+          const profilePic = document.getElementById("profilePassportPhoto");
           if (profilePic) {
             profilePic.src = base64String;
           }
