@@ -1005,14 +1005,20 @@ async function renderStudentCbtDashboard() {
 
     // 2. Query all scheduled CBT examinations matching current session, semester, and published status
     const examSnap = await getDocs(query(
-      collection(db, "examinations"), 
+      collection(db, "cbtExams"), 
       where("academicSession", "==", timelineSettings.session),
       where("semester", "==", timelineSettings.semester)
     ));
 
     const rawExamsList = examSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    // Filter down only to exams that match the student's registered courses, and are Published or Closed
-    studentCbtExamsList = rawExamsList.filter(ex => registeredCourses.includes(ex.courseCode) && (ex.status === "Published" || ex.status === "Closed"));
+    // Filter down only to exams that match the student's registered courses, and are Published and currently active
+    const nowFilter = new Date();
+    studentCbtExamsList = rawExamsList.filter(ex => {
+      const startDate = new Date(ex.startDate);
+      const endDate = new Date(ex.endDate);
+      const isActive = ex.status === "Published" && nowFilter >= startDate && nowFilter <= endDate;
+      return registeredCourses.includes(ex.courseCode) && isActive;
+    });
 
     if (studentCbtExamsList.length === 0) {
       container.innerHTML = `
@@ -1031,7 +1037,7 @@ async function renderStudentCbtDashboard() {
     for (const ex of studentCbtExamsList) {
       // Check if student has already completed this assessment
       const resDocId = `${currentStudentDoc.studentId.replace(/\//g, "-")}_${ex.id}`;
-      const resSnap = await getDoc(doc(db, "examinationResults", resDocId));
+      const resSnap = await getDoc(doc(db, "cbtResults", resDocId));
       const hasCompleted = resSnap.exists();
       let completedData = hasCompleted ? resSnap.data() : null;
 
@@ -1162,12 +1168,45 @@ async function initializeActiveExam() {
   const container = document.getElementById("studentCbtExamsContainer");
   if (!container || !activeCbtExam) return;
 
+  // 0. Security Checks
+  const resDocId = `${currentStudentDoc.studentId.replace(/\//g, "-")}_${activeCbtExam.id}`;
+  const resSnap = await getDoc(doc(db, "cbtResults", resDocId));
+  if (resSnap.exists()) {
+    alert("⚠️ Security Violation: You have already completed this examination. Re-entry is strictly prohibited.");
+    toggleCbtFocusLayout(false);
+    return;
+  }
+
+  const now = new Date();
+  const startDate = new Date(activeCbtExam.startDate);
+  const endDate = new Date(activeCbtExam.endDate);
+  if (now < startDate || now > endDate || activeCbtExam.status !== "Published") {
+    alert("⚠️ Security Violation: This examination is currently inactive, closed, or unpublished.");
+    toggleCbtFocusLayout(false);
+    return;
+  }
+
+  // 0.1 Log Attempt Record
+  const attemptDocId = `${currentStudentDoc.studentId.replace(/\//g, "-")}_${activeCbtExam.id}`;
+  try {
+    await setDoc(doc(db, "cbtAttempts", attemptDocId), {
+      studentId: currentStudentDoc.studentId,
+      studentName: currentStudentDoc.fullName,
+      examId: activeCbtExam.id,
+      courseCode: activeCbtExam.courseCode,
+      startedAt: new Date().toISOString(),
+      status: "started"
+    }, { merge: true });
+  } catch (err) {
+    console.error("Failed to log start attempt:", err);
+  }
+
   window.showToast("Cataloging test questions from cloud bank...", "info");
 
   try {
     // 1. Fetch questions matching current exam criteria
     const qSnap = await getDocs(query(
-      collection(db, "questionBank"),
+      collection(db, "cbtQuestions"),
       where("courseCode", "==", activeCbtExam.courseCode),
       where("academicSession", "==", activeCbtExam.academicSession),
       where("semester", "==", activeCbtExam.semester)
@@ -1187,15 +1226,23 @@ async function initializeActiveExam() {
     }
     activeCbtQuestions = chosenQuestions.slice(0, activeCbtExam.numQuestions);
 
-    // 3. Setup temporary local answer cache if exists
+    // 3. Setup temporary local/cloud answer cache if exists to support reconnect/resume
     studentAnswers = {};
     flaggedQuestions.clear();
-    const localCache = localStorage.getItem(`cbt_temp_answers_${activeCbtExam.id}`);
-    if (localCache) {
-      try {
-        studentAnswers = JSON.parse(localCache);
-      } catch (e) {
-        studentAnswers = {};
+    
+    const answerDocId = `${currentStudentDoc.studentId.replace(/\//g, "-")}_${activeCbtExam.id}`;
+    const ansSnap = await getDoc(doc(db, "cbtAnswers", answerDocId));
+    if (ansSnap.exists()) {
+      studentAnswers = ansSnap.data().answers || {};
+      window.showToast("Resumed from cloud-saved progression.", "success");
+    } else {
+      const localCache = localStorage.getItem(`cbt_temp_answers_${activeCbtExam.id}`);
+      if (localCache) {
+        try {
+          studentAnswers = JSON.parse(localCache);
+        } catch (e) {
+          studentAnswers = {};
+        }
       }
     }
 
@@ -1346,6 +1393,17 @@ function renderCbtQuestionAndChoices() {
       
       // Save local progress cache
       localStorage.setItem(`cbt_temp_answers_${activeCbtExam.id}`, JSON.stringify(studentAnswers));
+
+      // Save to cloud registry in real-time
+      const answerDocId = `${currentStudentDoc.studentId.replace(/\//g, "-")}_${activeCbtExam.id}`;
+      setDoc(doc(db, "cbtAnswers", answerDocId), {
+        studentId: currentStudentDoc.studentId,
+        examId: activeCbtExam.id,
+        answers: studentAnswers,
+        lastUpdated: new Date().toISOString()
+      }, { merge: true }).catch(err => {
+        console.error("Failed to sync answer to cloud:", err);
+      });
 
       // Style cards
       container.querySelectorAll(".cbt-option-card").forEach(lbl => {
@@ -1527,7 +1585,7 @@ async function submitExamination(isAutoTimeUp = false) {
   const resultDocId = `${currentStudentDoc.studentId.replace(/\//g, "-")}_${activeCbtExam.id}`;
 
   try {
-    const resultRef = doc(db, "examinationResults", resultDocId);
+    const resultRef = doc(db, "cbtResults", resultDocId);
     await setDoc(resultRef, {
       examId: activeCbtExam.id,
       courseCode: activeCbtExam.courseCode,
@@ -1544,6 +1602,13 @@ async function submitExamination(isAutoTimeUp = false) {
       submittedAt: new Date().toISOString()
     });
 
+    // Update Attempt Record status
+    const attemptDocId = `${currentStudentDoc.studentId.replace(/\//g, "-")}_${activeCbtExam.id}`;
+    await setDoc(doc(db, "cbtAttempts", attemptDocId), {
+      status: "submitted",
+      submittedAt: new Date().toISOString()
+    }, { merge: true });
+
     // Clean up cache
     localStorage.removeItem(`cbt_temp_answers_${activeCbtExam.id}`);
 
@@ -1553,6 +1618,7 @@ async function submitExamination(isAutoTimeUp = false) {
       const sealIconColor = passed ? '#28a745' : '#dc3545';
       const statusBadgeBg = passed ? '#28A745' : '#DC3545';
       const statusText = passed ? 'EXCELLENT (PASS)' : 'FAIL';
+      const showScore = activeCbtExam.showResultImmediately;
 
       resultPanel.innerHTML = `
         <div class="portal-card" style="padding: 3rem; border-top: 6px solid ${passed ? '#28A745' : '#DC3545'}; position: relative; overflow: hidden;">
@@ -1565,6 +1631,7 @@ async function submitExamination(isAutoTimeUp = false) {
           <h2 style="font-size: 1.75rem; font-weight: 800; color: var(--primary-dark); margin-bottom: 0.25rem;">${isAutoTimeUp ? 'Assessment Terminated!' : 'Assessment Logged Successfully!'}</h2>
           <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 2rem;">Your responses have been successfully committed to the DIMABIN Central Registry.</p>
 
+          ${showScore ? `
           <!-- Scoring Card -->
           <div style="background-color: var(--bg-slate); border: 1.5px solid var(--border-color); padding: 2rem; border-radius: var(--border-radius-lg); margin-bottom: 2.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; align-items: center;">
             <div style="border-right: 1px solid var(--border-color); padding-right: 1rem;">
@@ -1578,12 +1645,21 @@ async function submitExamination(isAutoTimeUp = false) {
               <span style="display: inline-block; padding: 0.25rem 0.6rem; border-radius: 4px; font-weight: 800; font-size: 0.75rem; background-color: ${statusBadgeBg}; color: white;">${statusText}</span>
             </div>
           </div>
+          ` : `
+          <div style="background-color: var(--bg-slate); border: 1.5px solid var(--border-color); padding: 2rem; border-radius: var(--border-radius-lg); margin-bottom: 2.5rem; text-align: center; color: var(--text-dark); font-weight: 700;">
+            <i class="fa-solid fa-lock" style="font-size: 1.5rem; color: var(--accent); margin-bottom: 0.5rem; display: block;"></i>
+            Score Released Post-Moderation: Your answers have been safely received. Grades will be accessible once finalized by the Department.
+          </div>
+          `}
 
           <div style="display: flex; flex-direction: column; gap: 0.75rem; text-align: left; background-color: #fcf8e3; border: 1px solid #fbeed5; padding: 1rem; border-radius: var(--border-radius-md); font-size: 0.8rem; color: #c09853; line-height: 1.5; margin-bottom: 2rem;">
             <div><i class="fa-solid fa-info-circle"></i> <strong>Note:</strong> Under active academic policy rules, this immediate assessment score is subject to final lecturer audit and general moderation parameters before appearing on official registration transcripts.</div>
           </div>
 
-          <button class="btn" id="btnCbtResultExit" style="background-color: var(--primary); color: white; min-width: 180px;"><i class="fa-solid fa-house-user"></i> Exit to Dashboard</button>
+          <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+            <button class="btn" id="btnCbtResultPrint" style="background-color: #28A745; color: white; min-width: 180px;"><i class="fa-solid fa-print"></i> Print Result Slip</button>
+            <button class="btn" id="btnCbtResultExit" style="background-color: var(--primary); color: white; min-width: 180px;"><i class="fa-solid fa-house-user"></i> Exit to Dashboard</button>
+          </div>
         </div>
       `;
 
@@ -1591,6 +1667,86 @@ async function submitExamination(isAutoTimeUp = false) {
       document.getElementById("btnCbtResultExit")?.addEventListener("click", () => {
         resultPanel.style.display = "none";
         renderStudentCbtDashboard();
+      });
+
+      // Bind Print button
+      document.getElementById("btnCbtResultPrint")?.addEventListener("click", () => {
+        const printWindow = window.open('', '_blank');
+        const remark = passed ? "PASS" : "FAIL";
+        printWindow.document.write(`
+          <html>
+            <head>
+              <title>CBT Result Slip - ${activeCbtExam.courseCode}</title>
+              <style>
+                body { font-family: 'Poppins', sans-serif; padding: 30px; text-align: center; color: #333; }
+                .slip-container { border: 2px solid #1F3B82; padding: 40px; border-radius: 8px; max-width: 600px; margin: 0 auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+                .logo { font-size: 24px; font-weight: 800; color: #1F3B82; text-transform: uppercase; margin-bottom: 5px; }
+                .subtitle { font-size: 14px; color: #666; margin-bottom: 30px; }
+                .header { border-bottom: 1px solid #ddd; padding-bottom: 15px; margin-bottom: 20px; text-align: left; }
+                .row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 15px; }
+                .label { font-weight: 600; color: #555; }
+                .val { font-weight: 700; color: #111; }
+                .score-box { background-color: #F5F7FA; border: 1.5px solid #1F3B82; padding: 20px; border-radius: 6px; margin: 30px 0; display: flex; justify-content: space-around; align-items: center; }
+                .score-item { text-align: center; }
+                .score-val { font-size: 28px; font-weight: 900; color: #1F3B82; }
+                .score-lbl { font-size: 11px; text-transform: uppercase; font-weight: 700; color: #666; margin-top: 5px; }
+                .badge { display: inline-block; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 800; color: white; }
+                .badge-pass { background-color: #28A745; }
+                .badge-fail { background-color: #DC3545; }
+                .footer { font-size: 12px; color: #888; margin-top: 40px; font-style: italic; }
+              </style>
+            </head>
+            <body>
+              <div class="slip-container">
+                <div class="logo">DIMABIN CBT ENGINE</div>
+                <div class="subtitle">Official Computer-Based Test Result Slip</div>
+                
+                <div class="header">
+                  <div class="row"><span class="label">Candidate Name:</span><span class="val">${currentStudentDoc.fullName}</span></div>
+                  <div class="row"><span class="label">Matric Number:</span><span class="val">${currentStudentDoc.matricNumber}</span></div>
+                  <div class="row"><span class="label">Course Code:</span><span class="val">${activeCbtExam.courseCode}</span></div>
+                  <div class="row"><span class="label">Examination:</span><span class="val">${activeCbtExam.title}</span></div>
+                  <div class="row"><span class="label">Session / Semester:</span><span class="val">${activeCbtExam.academicSession} / ${activeCbtExam.semester}</span></div>
+                  <div class="row"><span class="label">Date Submitted:</span><span class="val">${new Date().toLocaleString()}</span></div>
+                </div>
+
+                ${showScore ? `
+                <div class="score-box">
+                  <div class="score-item">
+                    <div class="score-val">${score} / ${totalPossibleMarks}</div>
+                    <div class="score-lbl">Total Score</div>
+                  </div>
+                  <div class="score-item">
+                    <div class="score-val">${percentage}%</div>
+                    <div class="score-lbl">Percentage</div>
+                  </div>
+                  <div class="score-item">
+                    <div class="score-val">${grade}</div>
+                    <div class="score-lbl">Grade</div>
+                  </div>
+                  <div class="score-item">
+                    <span class="badge ${passed ? 'badge-pass' : 'badge-fail'}">${remark}</span>
+                    <div class="score-lbl">Standing</div>
+                  </div>
+                </div>
+                ` : `
+                <div style="background-color: #F5F7FA; border: 1.5px dashed #F4B000; padding: 25px; border-radius: 6px; margin: 30px 0; font-weight: 700;">
+                  <div style="font-size: 16px; color: #1F3B82; margin-bottom: 5px;">Result Pending Departmental Release</div>
+                  <div style="font-size: 12px; color: #666; font-weight: normal;">Your exam coordinates have been securely saved. Scores are hidden until published by your lecturer.</div>
+                </div>
+                `}
+
+                <div class="footer">
+                  This slip was generated automatically from the DIMABIN Central Academic Registry. Verification Key: ${resultDocId}
+                </div>
+              </div>
+              <script>
+                window.onload = function() { window.print(); }
+              </script>
+            </body>
+          </html>
+        `);
+        printWindow.document.close();
       });
     }
 

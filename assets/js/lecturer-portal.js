@@ -1598,7 +1598,7 @@ function switchCbtSubtab(subtabId) {
 
 async function loadQuestionBank() {
   try {
-    const qSnap = await getDocs(query(collection(db, "questionBank"), where("lecturerId", "==", currentLecturerDoc.lecturerId)));
+    const qSnap = await getDocs(query(collection(db, "cbtQuestions"), where("lecturerId", "==", currentLecturerDoc.lecturerId)));
     questionBankData = qSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   } catch (err) {
     console.error("Failed to load question bank:", err);
@@ -1688,7 +1688,7 @@ if (qBankForm) {
     };
 
     try {
-      const qRef = qIdVal ? doc(db, "questionBank", qIdVal) : doc(collection(db, "questionBank"));
+      const qRef = qIdVal ? doc(db, "cbtQuestions", qIdVal) : doc(collection(db, "cbtQuestions"));
       if (!qIdVal) {
         data.createdAt = new Date().toISOString();
       }
@@ -1757,7 +1757,7 @@ async function deleteQuestion(id) {
 
   try {
     const { deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-    await deleteDoc(doc(db, "questionBank", id));
+    await deleteDoc(doc(db, "cbtQuestions", id));
     window.showToast("Question successfully purged.", "success");
     await loadQuestionBank();
     renderQuestionBankList();
@@ -1773,7 +1773,7 @@ async function deleteQuestion(id) {
 
 async function loadExaminations() {
   try {
-    const examSnap = await getDocs(query(collection(db, "examinations"), where("lecturerId", "==", currentLecturerDoc.lecturerId)));
+    const examSnap = await getDocs(query(collection(db, "cbtExams"), where("lecturerId", "==", currentLecturerDoc.lecturerId)));
     examinationsData = examSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   } catch (err) {
     console.error("Failed to load examinations:", err);
@@ -1797,6 +1797,11 @@ if (createExamForm) {
       return;
     }
 
+    if (!currentLecturerDoc.coursesAssigned || !currentLecturerDoc.coursesAssigned.includes(courseCode)) {
+      alert("⚠️ Security Violation: You can only configure examinations for courses officially assigned to your profile.");
+      return;
+    }
+
     const data = {
       courseCode: courseCode,
       academicSession: document.getElementById("examSession").value,
@@ -1804,6 +1809,7 @@ if (createExamForm) {
       title: document.getElementById("examTitle").value.trim(),
       duration: parseInt(document.getElementById("examDuration").value) || 60,
       numQuestions: numQuestions,
+      passMark: parseInt(document.getElementById("examPassMark").value) || 40,
       startDate: document.getElementById("examOpenDate").value,
       endDate: document.getElementById("examCloseDate").value,
       randomizeQuestions: document.getElementById("examRandQuestions").value === "Yes",
@@ -1815,7 +1821,7 @@ if (createExamForm) {
     };
 
     try {
-      const examRef = examIdVal ? doc(db, "examinations", examIdVal) : doc(collection(db, "examinations"));
+      const examRef = examIdVal ? doc(db, "cbtExams", examIdVal) : doc(collection(db, "cbtExams"));
       if (!examIdVal) {
         data.createdAt = new Date().toISOString();
       }
@@ -1914,7 +1920,7 @@ function renderScheduledExamsList() {
 
 async function updateExamStatus(id, newStatus) {
   try {
-    await updateDoc(doc(db, "examinations", id), { status: newStatus, updatedAt: new Date().toISOString() });
+    await updateDoc(doc(db, "cbtExams", id), { status: newStatus, updatedAt: new Date().toISOString() });
     window.showToast(`Assessment status set to [${newStatus}].`, "success");
     await loadExaminations();
     renderScheduledExamsList();
@@ -1935,6 +1941,7 @@ function editExam(id) {
   document.getElementById("examTitle").value = ex.title;
   document.getElementById("examDuration").value = ex.duration;
   document.getElementById("examNumQuestions").value = ex.numQuestions;
+  document.getElementById("examPassMark").value = ex.passMark || 40;
   document.getElementById("examOpenDate").value = ex.startDate;
   document.getElementById("examCloseDate").value = ex.endDate;
   document.getElementById("examRandQuestions").value = ex.randomizeQuestions ? "Yes" : "No";
@@ -1951,7 +1958,7 @@ async function deleteExam(id) {
 
   try {
     const { deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-    await deleteDoc(doc(db, "examinations", id));
+    await deleteDoc(doc(db, "cbtExams", id));
     window.showToast("Examination configuration successfully deleted.", "success");
     await loadExaminations();
     renderScheduledExamsList();
@@ -1999,7 +2006,7 @@ async function loadSelectedExamResults(examId) {
   tableBody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-muted);">Fetching results data...</td></tr>`;
 
   try {
-    const rSnap = await getDocs(query(collection(db, "examinationResults"), where("examId", "==", examId)));
+    const rSnap = await getDocs(query(collection(db, "cbtResults"), where("examId", "==", examId)));
     activeResultsList = rSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
     if (activeResultsList.length === 0) {
