@@ -697,6 +697,176 @@
     .stat-card-icon.red { background-color: rgba(220, 53, 69, 0.1); color: #dc3545; }
     .stat-card-icon.purple { background-color: rgba(111, 66, 193, 0.1); color: #6f42c1; }
 
+    /* Lecturer Control Center Cards Styling */
+    .control-center-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr); /* 4 cards per row on desktop */
+      gap: 1.5rem;
+      margin-top: 1.5rem;
+    }
+
+    @media (max-width: 1200px) {
+      .control-center-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    @media (max-width: 991px) {
+      .control-center-grid {
+        grid-template-columns: repeat(2, 1fr); /* 2 cards per row on tablet */
+      }
+    }
+
+    @media (max-width: 576px) {
+      .control-center-grid {
+        grid-template-columns: 1fr; /* 1 card per row on mobile */
+        gap: 1rem;
+      }
+    }
+
+    .control-card {
+      background-color: var(--bg-white);
+      border-radius: var(--border-radius-lg);
+      border: 1px solid var(--border-color);
+      padding: 1.75rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.04);
+      height: 100%;
+      min-height: 250px;
+    }
+
+    .control-card::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle, rgba(31, 59, 130, 0.08) 1%, transparent 1%);
+      transform: translate(-50%, -50%) scale(10);
+      opacity: 0;
+      transition: transform 0.5s, opacity 1s;
+    }
+
+    .control-card:active::after {
+      transform: translate(-50%, -50%) scale(0);
+      opacity: 0.2;
+      transition: 0s;
+    }
+
+    .control-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 12px 20px rgba(31, 59, 130, 0.12);
+      border-color: rgba(31, 59, 130, 0.25);
+    }
+
+    .control-card-icon-wrapper {
+      width: 56px;
+      height: 56px;
+      border-radius: var(--border-radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.25rem;
+      font-size: 1.75rem;
+      transition: all 0.3s ease;
+    }
+
+    .card-primary .control-card-icon-wrapper {
+      background-color: rgba(31, 59, 130, 0.08);
+      color: var(--primary);
+    }
+    .card-primary:hover .control-card-icon-wrapper {
+      background-color: var(--primary);
+      color: var(--bg-white);
+    }
+
+    .card-accent .control-card-icon-wrapper {
+      background-color: rgba(244, 176, 0, 0.1);
+      color: var(--accent-hover);
+    }
+    .card-accent:hover .control-card-icon-wrapper {
+      background-color: var(--accent);
+      color: var(--primary-dark);
+    }
+
+    .card-success .control-card-icon-wrapper {
+      background-color: rgba(40, 167, 69, 0.1);
+      color: var(--success);
+    }
+    .card-success:hover .control-card-icon-wrapper {
+      background-color: var(--success);
+      color: var(--bg-white);
+    }
+
+    .card-purple .control-card-icon-wrapper {
+      background-color: rgba(111, 66, 193, 0.1);
+      color: #6f42c1;
+    }
+    .card-purple:hover .control-card-icon-wrapper {
+      background-color: #6f42c1;
+      color: var(--bg-white);
+    }
+
+    .card-teal .control-card-icon-wrapper {
+      background-color: rgba(32, 201, 151, 0.1);
+      color: #20c997;
+    }
+    .card-teal:hover .control-card-icon-wrapper {
+      background-color: #20c997;
+      color: var(--bg-white);
+    }
+
+    .control-card-title {
+      font-family: 'Poppins', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--primary-dark);
+      margin-bottom: 0.5rem;
+    }
+
+    .control-card-desc {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-bottom: 1.25rem;
+      flex-grow: 1;
+    }
+
+    .control-card-footer {
+      border-top: 1px solid var(--border-color);
+      padding-top: 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--primary);
+    }
+
+    .control-card-footer i {
+      transition: transform 0.2s ease;
+    }
+
+    .control-card:hover .control-card-footer i {
+      transform: translateX(4px);
+    }
+
+    .control-card-badge {
+      background-color: rgba(31, 59, 130, 0.08);
+      color: var(--primary);
+      padding: 0.15rem 0.5rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+
     /* Tables & Lists */
     .table-container {
       background-color: var(--bg-white);
@@ -1048,63 +1218,200 @@
         
         <!-- Tab 1: Overview / Home -->
         <div class="tab-content active" id="tab-overview">
-          <div style="margin-bottom: 2.5rem;">
-            <h2 class="font-display" style="color: var(--primary); font-size: 2rem; margin-bottom: 0.5rem;" id="welcomeMessage">Welcome back, Lecturer!</h2>
-            <p style="color: var(--text-muted); margin-bottom: 0;" id="lecturerNavDetails">Loading your faculty index credentials...</p>
-          </div>
-
-          <div class="stats-grid">
-            <!-- Card: Assigned Courses -->
-            <div class="stat-card" id="cardAssignedCoursesBtn">
-              <div class="stat-card-info">
-                <h5>Assigned Courses</h5>
-                <div class="stat-value" id="cardAssignedCoursesCount">0</div>
+          <!-- Lecturer Profile & Timeline Summary Card -->
+          <div class="overview-profile-banner" style="background: linear-gradient(135deg, var(--primary) 0%, #2c4ea3 100%); color: var(--bg-white); border-radius: var(--border-radius-lg); padding: 2rem; margin-bottom: 2.5rem; box-shadow: var(--shadow-sm); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1.5rem;">
+            <div style="display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
+              <div style="width: 70px; height: 70px; border-radius: 50%; border: 3px solid var(--accent); overflow: hidden; background-color: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-sm);">
+                <img id="overviewProfilePic" src="../assets/images/logo.jpg" style="width: 100%; height: 100%; object-fit: cover;" alt="Lecturer" onerror="this.src='../assets/images/logo.jpg'">
               </div>
-              <div class="stat-card-icon blue"><i class="fa-solid fa-book"></i></div>
+              <div>
+                <h2 class="font-display" style="font-size: 1.75rem; margin: 0 0 0.35rem 0; color: #fff;" id="welcomeMessage">Welcome back, Lecturer!</h2>
+                <div style="display: flex; flex-wrap: wrap; gap: 1rem; font-size: 0.85rem; opacity: 0.9;">
+                  <span><i class="fa-solid fa-id-card" style="color: var(--accent); margin-right: 4px;"></i> <strong id="overviewLecturerId">Staff ID: Loading...</strong></span>
+                  <span><i class="fa-solid fa-graduation-cap" style="color: var(--accent); margin-right: 4px;"></i> <strong id="overviewLecturerDept">Department: Loading...</strong></span>
+                </div>
+              </div>
             </div>
-
-            <!-- Card: Registered Students -->
-            <div class="stat-card" id="cardRegisteredStudentsBtn">
-              <div class="stat-card-info">
-                <h5>Registered Students</h5>
-                <div class="stat-value" id="cardRegisteredStudentsCount">0</div>
-              </div>
-              <div class="stat-card-icon green"><i class="fa-solid fa-user-graduate"></i></div>
-            </div>
-
-            <!-- Card: Uploaded Results -->
-            <div class="stat-card" id="cardUploadedResultsBtn">
-              <div class="stat-card-info">
-                <h5>Uploaded Results</h5>
-                <div class="stat-value" id="cardUploadedResultsCount">0</div>
-              </div>
-              <div class="stat-card-icon yellow"><i class="fa-solid fa-square-poll-vertical"></i></div>
-            </div>
-
-            <!-- Card: Notifications -->
-            <div class="stat-card" id="cardNotificationsBtn">
-              <div class="stat-card-info">
-                <h5>Announcements</h5>
-                <div class="stat-value" id="cardNotificationsCount">0</div>
-              </div>
-              <div class="stat-card-icon purple"><i class="fa-solid fa-bell"></i></div>
+            <div style="background-color: rgba(255, 255, 255, 0.1); border-left: 4px solid var(--accent); padding: 0.75rem 1.25rem; border-radius: 4px; min-width: 220px;">
+              <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: var(--accent); font-weight: 700; margin-bottom: 0.25rem;">Active Academic Period</div>
+              <div style="font-size: 0.95rem; font-weight: 600; margin-bottom: 0.15rem;"><i class="fa-solid fa-calendar-days" style="margin-right: 4px; font-size: 0.85rem;"></i> Session: <span id="currentSessionDisplay">Loading...</span></div>
+              <div style="font-size: 0.95rem; font-weight: 600;"><i class="fa-solid fa-clock" style="margin-right: 4px; font-size: 0.85rem;"></i> Semester: <span id="currentSemesterDisplay">Loading...</span></div>
             </div>
           </div>
 
-          <!-- Academic Session and Semester Information Banner -->
-          <div style="background-color: var(--bg-white); border-radius: var(--border-radius-lg); border: 1px solid var(--border-color); padding: 2.5rem; margin-top: 2rem;">
-            <h3 class="font-display" style="color: var(--primary); font-size: 1.25rem; margin-bottom: 1rem;"><i class="fa-solid fa-circle-info" style="color: var(--accent); margin-right: 0.5rem;"></i> Active Academic Timeline</h3>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; font-size: 0.95rem; color: var(--text-dark);">
+          <!-- LECTURER CONTROL CENTER CARD GRID -->
+          <div style="margin-top: 2rem; margin-bottom: 1rem;">
+            <h3 class="font-display" style="color: var(--primary); font-size: 1.35rem; margin-bottom: 0.5rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; display: inline-block;">
+              <i class="fa-solid fa-circle-nodes" style="color: var(--accent); margin-right: 0.5rem;"></i> Lecturer Control Center
+            </h3>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.25rem;">Select any card module below to manage your assigned students, courses, results, CBT engine, or timetable records directly.</p>
+          </div>
+
+          <div class="control-center-grid">
+            <!-- Card 1: My Profile -->
+            <div class="control-card card-primary" data-tab="profile">
               <div>
-                <strong style="color: var(--primary);">Academic Session:</strong> <span id="currentSessionDisplay">Loading...</span>
+                <div class="control-card-icon-wrapper">
+                  <i class="fa-solid fa-user-tie"></i>
+                </div>
+                <h4 class="control-card-title">My Profile</h4>
+                <p class="control-card-desc">View and manage your official faculty contact details, update your photo, and configure secure recovery parameters.</p>
               </div>
-              <div>
-                <strong style="color: var(--primary);">Current Semester:</strong> <span id="currentSemesterDisplay">Loading...</span>
+              <div class="control-card-footer">
+                <span>View Profile</span>
+                <i class="fa-solid fa-chevron-right"></i>
               </div>
             </div>
-            <p style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.6; margin-top: 1rem; margin-bottom: 0; border-top: 1px solid var(--border-color); padding-top: 1rem;">
-              Please ensure that continuous assessments and semester examinations scores are uploaded and cross-verified before publishing. Once results are published, students can immediately access them on their portals.
-            </p>
+
+            <!-- Card 2: Assigned Courses -->
+            <div class="control-card card-accent" data-tab="courses" id="cardAssignedCoursesBtn">
+              <div>
+                <div class="control-card-icon-wrapper">
+                  <i class="fa-solid fa-book"></i>
+                </div>
+                <h4 class="control-card-title">Assigned Courses</h4>
+                <p class="control-card-desc">Access your assigned academic curriculum, review course settings, and monitor registered student counts.</p>
+              </div>
+              <div class="control-card-footer">
+                <span class="control-card-badge"><span id="cardAssignedCoursesCount">0</span> Courses</span>
+                <i class="fa-solid fa-chevron-right"></i>
+              </div>
+            </div>
+
+            <!-- Card 3: Registered Students -->
+            <div class="control-card card-success" data-tab="students" id="cardRegisteredStudentsBtn">
+              <div>
+                <div class="control-card-icon-wrapper">
+                  <i class="fa-solid fa-user-graduate"></i>
+                </div>
+                <h4 class="control-card-title">Registered Students</h4>
+                <p class="control-card-desc">Track and view list of students registered under your courses, check enrollment records, and student profiles.</p>
+              </div>
+              <div class="control-card-footer">
+                <span class="control-card-badge"><span id="cardRegisteredStudentsCount">0</span> Students</span>
+                <i class="fa-solid fa-chevron-right"></i>
+              </div>
+            </div>
+
+            <!-- Card 4: Upload & Publish Results -->
+            <div class="control-card card-purple" data-tab="results" id="cardUploadedResultsBtn">
+              <div>
+                <div class="control-card-icon-wrapper">
+                  <i class="fa-solid fa-file-arrow-up"></i>
+                </div>
+                <h4 class="control-card-title">Upload & Publish Results</h4>
+                <p class="control-card-desc">Manage grading worksheets, enter CA, assignments, and exams scores. Auto-grade GPA and publish official results.</p>
+              </div>
+              <div class="control-card-footer">
+                <span class="control-card-badge"><span id="cardUploadedResultsCount">0</span> Uploads</span>
+                <i class="fa-solid fa-chevron-right"></i>
+              </div>
+            </div>
+
+            <!-- Card 5: CBT Management -->
+            <div class="control-card card-teal" data-tab="cbt-management">
+              <div>
+                <div class="control-card-icon-wrapper">
+                  <i class="fa-solid fa-laptop-code"></i>
+                </div>
+                <h4 class="control-card-title">CBT Management</h4>
+                <p class="control-card-desc">Create, publish, or close Computer-Based Tests. Author question banks, preview tests, and grade automated assessments.</p>
+              </div>
+              <div class="control-card-footer">
+                <span>CBT Engine</span>
+                <i class="fa-solid fa-chevron-right"></i>
+              </div>
+            </div>
+
+            <!-- Card 6: Attendance Management -->
+            <div class="control-card card-primary" data-tab="attendance">
+              <div>
+                <div class="control-card-icon-wrapper">
+                  <i class="fa-solid fa-clipboard-user"></i>
+                </div>
+                <h4 class="control-card-title">Attendance</h4>
+                <p class="control-card-desc">Record daily student attendance, compile session logs, generate summary reports, and download certified PDFs.</p>
+              </div>
+              <div class="control-card-footer">
+                <span>Manage Attendance</span>
+                <i class="fa-solid fa-chevron-right"></i>
+              </div>
+            </div>
+
+            <!-- Card 7: Learning Materials -->
+            <div class="control-card card-accent" data-tab="learning-materials">
+              <div>
+                <div class="control-card-icon-wrapper">
+                  <i class="fa-solid fa-file-pdf"></i>
+                </div>
+                <h4 class="control-card-title">Learning Materials</h4>
+                <p class="control-card-desc">Distribute PDFs, slides, assignments, audio, and video resources directly to registered student dashboards in real-time.</p>
+              </div>
+              <div class="control-card-footer">
+                <span>Course Ware</span>
+                <i class="fa-solid fa-chevron-right"></i>
+              </div>
+            </div>
+
+            <!-- Card 8: Lecturer Timetable -->
+            <div class="control-card card-success" data-tab="timetable">
+              <div>
+                <div class="control-card-icon-wrapper">
+                  <i class="fa-solid fa-calendar-days"></i>
+                </div>
+                <h4 class="control-card-title">Lecturer Timetable</h4>
+                <p class="control-card-desc">Review your official weekly lecture timetable, course assignments, designated venues, and lecture times.</p>
+              </div>
+              <div class="control-card-footer">
+                <span>View Schedule</span>
+                <i class="fa-solid fa-chevron-right"></i>
+              </div>
+            </div>
+
+            <!-- Card 9: Performance Analytics -->
+            <div class="control-card card-purple" data-tab="performance-analytics">
+              <div>
+                <div class="control-card-icon-wrapper">
+                  <i class="fa-solid fa-chart-line"></i>
+                </div>
+                <h4 class="control-card-title">Performance Analytics</h4>
+                <p class="control-card-desc">Evaluate class-wide performance charts. Analyze pass/fail trends, averages, CBT success, and attendance metrics.</p>
+              </div>
+              <div class="control-card-footer">
+                <span>View Analytics</span>
+                <i class="fa-solid fa-chevron-right"></i>
+              </div>
+            </div>
+
+            <!-- Card 10: Notifications -->
+            <div class="control-card card-teal" data-tab="notifications" id="cardNotificationsBtn">
+              <div>
+                <div class="control-card-icon-wrapper">
+                  <i class="fa-solid fa-bell"></i>
+                </div>
+                <h4 class="control-card-title">Notifications</h4>
+                <p class="control-card-desc">Compose and dispatch general notices or announcements to students with immediate EmailJS dispatch services.</p>
+              </div>
+              <div class="control-card-footer">
+                <span class="control-card-badge"><span id="cardNotificationsCount">0</span> Unread</span>
+                <i class="fa-solid fa-chevron-right"></i>
+              </div>
+            </div>
+
+            <!-- Card 11: Password & Security -->
+            <div class="control-card card-primary" data-tab="security">
+              <div>
+                <div class="control-card-icon-wrapper">
+                  <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <h4 class="control-card-title">Password & Security</h4>
+                <p class="control-card-desc">Secure your portal with custom password settings, recovery email configuration, and active devices session logs.</p>
+              </div>
+              <div class="control-card-footer">
+                <span>System Security</span>
+                <i class="fa-solid fa-chevron-right"></i>
+              </div>
+            </div>
           </div>
         </div>
 

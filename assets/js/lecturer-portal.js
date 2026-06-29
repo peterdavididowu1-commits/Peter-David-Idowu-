@@ -109,9 +109,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 // Tab navigation handler
 function setupTabNavigation() {
-  // Delegate clicks on the document to capture any sidebar tab button clicks
+  // Delegate clicks on the document to capture any sidebar tab button or control center card clicks
   document.addEventListener("click", (e) => {
-    const btn = e.target.closest(".sidebar-nav-btn[data-tab]");
+    const btn = e.target.closest(".sidebar-nav-btn[data-tab], .control-card[data-tab]");
     if (btn) {
       e.preventDefault();
       const targetTab = btn.getAttribute("data-tab");
@@ -378,6 +378,21 @@ async function enterDashboard() {
     welcomeMsg.textContent = `Welcome back, ${currentLecturerDoc.fullName}!`;
   }
 
+  // Populate overview profile banner elements
+  const overviewLecturerId = document.getElementById("overviewLecturerId");
+  const overviewLecturerDept = document.getElementById("overviewLecturerDept");
+  const overviewProfilePic = document.getElementById("overviewProfilePic");
+
+  if (overviewLecturerId) {
+    overviewLecturerId.textContent = `Staff ID: ${currentLecturerDoc.lecturerId || "N/A"}`;
+  }
+  if (overviewLecturerDept) {
+    overviewLecturerDept.textContent = `Department: ${currentLecturerDoc.department || "Theology"}`;
+  }
+  if (overviewProfilePic) {
+    overviewProfilePic.src = currentLecturerDoc.passportPhoto || "../assets/images/logo.jpg";
+  }
+
   // Populate dynamic filters dropdowns
   populateFilterDropdowns();
 
@@ -583,6 +598,10 @@ if (profileForm) {
           const profilePic = document.getElementById("profilePassportPhoto");
           if (profilePic) {
             profilePic.src = base64String;
+          }
+          const overviewPic = document.getElementById("overviewProfilePic");
+          if (overviewPic) {
+            overviewPic.src = base64String;
           }
           window.showToast("Profile passport photo updated successfully!", "success");
         } catch (err) {
