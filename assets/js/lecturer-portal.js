@@ -1161,6 +1161,7 @@ async function renderResultUploadTab() {
       // Disable/Enable top buttons based on lock state and status
       const btnSave = document.getElementById("btnSaveDraftResults");
       const btnPub = document.getElementById("btnPublishResults");
+      const btnPubAll = document.getElementById("btnPublishAllResults");
       
       activeCourseStatus = statusText;
 
@@ -1169,11 +1170,15 @@ async function renderResultUploadTab() {
         if (btnPub) {
           btnPub.style.display = "inline-flex";
           btnPub.style.backgroundColor = "var(--success)";
-          btnPub.innerHTML = `<i class="fa-solid fa-globe"></i> Publish Results`;
+          btnPub.innerHTML = `<i class="fa-solid fa-globe"></i> Publish Result`;
+        }
+        if (btnPubAll) {
+          btnPubAll.style.display = "inline-flex";
         }
       } else if (statusText === "Submitted" || statusText === "Published") {
         if (btnSave) btnSave.style.display = "none";
         if (btnPub) btnPub.style.display = "none";
+        if (btnPubAll) btnPubAll.style.display = "none";
       } else {
         if (btnSave) btnSave.style.display = "inline-flex";
         if (btnPub) {
@@ -1181,6 +1186,7 @@ async function renderResultUploadTab() {
           btnPub.style.backgroundColor = "var(--primary)";
           btnPub.innerHTML = `<i class="fa-solid fa-paper-plane"></i> Submit Results`;
         }
+        if (btnPubAll) btnPubAll.style.display = "none";
       }
 
       if (activeCourseGradingList.length === 0) {
@@ -1209,19 +1215,19 @@ async function renderResultUploadTab() {
             <td><strong>${student.fullName}</strong></td>
             <td><code>${student.matricNumber}</code></td>
             <td>
-              <input type="number" class="form-control att-input" min="0" max="10" placeholder="0-10" value="${attVal}" style="width: 100%; text-align: center; padding: 0.4rem; background-color: var(--bg-slate); border: 1px solid var(--border-color); border-radius: 4px;" ${isLocked ? 'disabled' : ''}>
+              <input type="number" class="form-control att-input" min="0" max="10" placeholder="0-10" value="${attVal}" onfocus="this.select()" style="width: 100%; text-align: center; padding: 0.4rem; background-color: var(--bg-slate); border: 1px solid var(--border-color); border-radius: 4px;" ${isLocked ? 'disabled' : ''}>
             </td>
             <td>
-              <input type="number" class="form-control asg-input" min="0" max="10" placeholder="0-10" value="${asgVal}" style="width: 100%; text-align: center; padding: 0.4rem; background-color: var(--bg-slate); border: 1px solid var(--border-color); border-radius: 4px;" ${isLocked ? 'disabled' : ''}>
+              <input type="number" class="form-control asg-input" min="0" max="10" placeholder="0-10" value="${asgVal}" onfocus="this.select()" style="width: 100%; text-align: center; padding: 0.4rem; background-color: var(--bg-slate); border: 1px solid var(--border-color); border-radius: 4px;" ${isLocked ? 'disabled' : ''}>
             </td>
             <td>
-              <input type="number" class="form-control test-input" min="0" max="10" placeholder="0-10" value="${testVal}" style="width: 100%; text-align: center; padding: 0.4rem; background-color: var(--bg-slate); border: 1px solid var(--border-color); border-radius: 4px;" ${isLocked ? 'disabled' : ''}>
+              <input type="number" class="form-control test-input" min="0" max="10" placeholder="0-10" value="${testVal}" onfocus="this.select()" style="width: 100%; text-align: center; padding: 0.4rem; background-color: var(--bg-slate); border: 1px solid var(--border-color); border-radius: 4px;" ${isLocked ? 'disabled' : ''}>
             </td>
             <td>
-              <input type="number" class="form-control prac-input" min="0" max="10" placeholder="Optional" value="${pracVal}" style="width: 100%; text-align: center; padding: 0.4rem; background-color: var(--bg-slate); border: 1px solid var(--border-color); border-radius: 4px;" ${isLocked ? 'disabled' : ''}>
+              <input type="number" class="form-control prac-input" min="0" max="10" placeholder="Optional" value="${pracVal}" onfocus="this.select()" style="width: 100%; text-align: center; padding: 0.4rem; background-color: var(--bg-slate); border: 1px solid var(--border-color); border-radius: 4px;" ${isLocked ? 'disabled' : ''}>
             </td>
             <td>
-              <input type="number" class="form-control exam-input" min="0" max="70" placeholder="0-70" value="${examVal}" style="width: 100%; text-align: center; padding: 0.4rem; background-color: var(--bg-slate); border: 1px solid var(--border-color); border-radius: 4px;" ${isLocked ? 'disabled' : ''}>
+              <input type="number" class="form-control exam-input" min="0" max="70" placeholder="0-70" value="${examVal}" onfocus="this.select()" style="width: 100%; text-align: center; padding: 0.4rem; background-color: var(--bg-slate); border: 1px solid var(--border-color); border-radius: 4px;" ${isLocked ? 'disabled' : ''}>
             </td>
             <td style="text-align: center; font-weight: 700; color: var(--primary);" class="row-total-score">${totalVal}</td>
             <td style="text-align: center;" class="row-grade">
@@ -1261,37 +1267,37 @@ function setupGradingCalculationTriggers() {
     const remarkCell = row.querySelector(".row-result-pass-fail");
 
     function calculate() {
-      const att = parseFloat(attInput.value) || 0;
-      const asg = parseFloat(asgInput.value) || 0;
-      const test = parseFloat(testInput.value) || 0;
-      const prac = parseFloat(pracInput.value) || 0;
-      const exam = parseFloat(examInput.value) || 0;
+      let att = parseFloat(attInput.value) || 0;
+      let asg = parseFloat(asgInput.value) || 0;
+      let test = parseFloat(testInput.value) || 0;
+      let prac = parseFloat(pracInput.value) || 0;
+      let exam = parseFloat(examInput.value) || 0;
 
       // Ensure valid boundaries
       if (attInput.value !== "" && (att < 0 || att > 10)) {
         window.showToast("Attendance scores must range between 0 and 10.", "warning");
-        attInput.value = Math.max(0, Math.min(10, att));
-        return;
+        att = Math.max(0, Math.min(10, att));
+        attInput.value = att;
       }
       if (asgInput.value !== "" && (asg < 0 || asg > 10)) {
         window.showToast("Assignment scores must range between 0 and 10.", "warning");
-        asgInput.value = Math.max(0, Math.min(10, asg));
-        return;
+        asg = Math.max(0, Math.min(10, asg));
+        asgInput.value = asg;
       }
       if (testInput.value !== "" && (test < 0 || test > 10)) {
         window.showToast("Test scores must range between 0 and 10.", "warning");
-        testInput.value = Math.max(0, Math.min(10, test));
-        return;
+        test = Math.max(0, Math.min(10, test));
+        testInput.value = test;
       }
       if (pracInput.value !== "" && (prac < 0 || prac > 10)) {
         window.showToast("Practical scores must range between 0 and 10.", "warning");
-        pracInput.value = Math.max(0, Math.min(10, prac));
-        return;
+        prac = Math.max(0, Math.min(10, prac));
+        pracInput.value = prac;
       }
       if (examInput.value !== "" && (exam < 0 || exam > 70)) {
         window.showToast("Semester Examination scores must range between 0 and 70.", "warning");
-        examInput.value = Math.max(0, Math.min(70, exam));
-        return;
+        exam = Math.max(0, Math.min(70, exam));
+        examInput.value = exam;
       }
 
       if (attInput.value === "" && asgInput.value === "" && testInput.value === "" && examInput.value === "") {
@@ -1342,9 +1348,10 @@ function setupGradingCalculationTriggers() {
   });
 }
 
-// Bulk Actions: Save Draft and Submit Results
+// Bulk Actions: Save Draft, Submit, and Publish Results
 const btnSaveDraft = document.getElementById("btnSaveDraftResults");
 const btnPublish = document.getElementById("btnPublishResults");
+const btnPublishAll = document.getElementById("btnPublishAllResults");
 
 if (btnSaveDraft) {
   btnSaveDraft.addEventListener("click", () => handleResultSubmissionFlow("Draft"));
@@ -1356,6 +1363,11 @@ if (btnPublish) {
     } else {
       handleResultSubmissionFlow("Submitted");
     }
+  });
+}
+if (btnPublishAll) {
+  btnPublishAll.addEventListener("click", () => {
+    handleResultPublishAllFlow();
   });
 }
 
@@ -1658,6 +1670,137 @@ async function handleResultPublishFlow() {
     window.showToast("Publication Error: " + err.message, "error");
   } finally {
     if (btnPub) btnPub.disabled = false;
+  }
+}
+
+async function handleResultPublishAllFlow() {
+  if (!currentLecturerDoc) return;
+  const assignedCodes = currentLecturerDoc.coursesAssigned || [];
+  if (assignedCodes.length === 0) {
+    window.showToast("No courses assigned to your profile.", "warning");
+    return;
+  }
+
+  const confirmPublish = await window.dimabinConfirm(
+    "Are you sure you want to PUBLISH ALL approved results for your assigned courses? Once published, they will become official and visible to all registered students.",
+    "Confirm Publish All Results"
+  );
+  if (!confirmPublish) return;
+
+  const btnPubAll = document.getElementById("btnPublishAllResults");
+  if (btnPubAll) btnPubAll.disabled = true;
+
+  window.showToast("Scanning and publishing all approved result sheets...", "info");
+
+  try {
+    let publishCount = 0;
+    const now = new Date();
+    const dateStr = now.toLocaleDateString();
+    const timeStr = now.toLocaleTimeString();
+    const timestamp = now.toISOString();
+
+    const lecturerName = currentLecturerDoc.fullName || "Lecturer";
+    const lecturerId = currentLecturerDoc.lecturerId || "Unknown Lecturer";
+
+    for (const code of assignedCodes) {
+      const docId = `${code}_${timelineSettings.session.replace(/\//g, "-")}_${timelineSettings.semester}`;
+      const resultsRef = doc(db, "results", docId);
+      const resultsSnap = await getDoc(resultsRef);
+
+      if (resultsSnap.exists()) {
+        const resultsData = resultsSnap.data();
+        if (resultsData.status === "Approved") {
+          // Update status to Published
+          await updateDoc(resultsRef, {
+            status: "Published",
+            publishedBy: lecturerId,
+            publishedByName: lecturerName,
+            publishedDate: dateStr,
+            publishedTime: timeStr,
+            publishedTimestamp: timestamp,
+            lastUpdated: timestamp
+          });
+
+          const matchedCourse = officialCoursesList.find(c => c.courseCode === code);
+          const courseTitle = matchedCourse ? (matchedCourse.courseTitle || matchedCourse.title || "Theology Course") : "Theology Course";
+          const creditUnit = matchedCourse ? parseInt(matchedCourse.creditUnit || matchedCourse.credits || 3) : 3;
+
+          const studentsList = resultsData.students || [];
+          const batchPromises = studentsList.map(async std => {
+            const pubDocId = `pub_${std.studentId}_${code}_${timelineSettings.session.replace(/\//g, "-")}_${timelineSettings.semester}`;
+            const total = std.total || 0;
+            let grade = std.grade || "F";
+            let gp = std.gp !== undefined ? std.gp : 0;
+            let remark = std.remark || "FAIL";
+
+            const studentPayload = {
+              studentId: std.studentId,
+              fullName: std.fullName,
+              matricNumber: std.matricNumber,
+              courseCode: code,
+              courseTitle: courseTitle,
+              creditUnit: creditUnit,
+              attendance: std.attendance !== undefined ? std.attendance : 0,
+              assignment: std.assignment !== undefined ? std.assignment : 0,
+              test: std.test !== undefined ? std.test : 0,
+              practical: std.practical !== undefined ? std.practical : 0,
+              examScore: std.examScore !== undefined ? std.examScore : 0,
+              total: total,
+              grade: grade,
+              gp: gp,
+              remark: remark,
+              semester: timelineSettings.semester,
+              academicSession: timelineSettings.session,
+              status: "Published",
+              publishedBy: lecturerName,
+              publishedDate: dateStr,
+              publishedTime: timeStr,
+              publishedAt: timestamp,
+              publishedTimestamp: timestamp
+            };
+
+            await setDoc(doc(db, "publishedResults", pubDocId), studentPayload);
+          });
+
+          await Promise.all(batchPromises);
+
+          // Save history entry
+          const histRef = doc(db, "approvalHistory", docId);
+          const histSnap = await getDoc(histRef);
+          let histList = [];
+          if (histSnap.exists()) {
+            histList = histSnap.data().history || [];
+          }
+          histList.push({
+            action: "Published",
+            approver: lecturerName,
+            approverId: lecturerId,
+            comments: "Results officially published to Student Portals.",
+            date: dateStr,
+            time: timeStr,
+            timestamp: timestamp
+          });
+          await setDoc(histRef, { courseCode: code, academicSession: timelineSettings.session, semester: timelineSettings.semester, history: histList });
+
+          publishCount++;
+        }
+      }
+    }
+
+    if (publishCount > 0) {
+      window.showToast(`Successfully published results for ${publishCount} course(s).`, "success");
+    } else {
+      window.showToast("No approved results sheet found to publish.", "warning");
+    }
+
+    // Force refresh the interface
+    document.getElementById("resultsCourseSelector").dispatchEvent(new Event("change"));
+
+  } catch (err) {
+    console.error("Result publication all failed:", err);
+    window.showToast("Publication Error: " + err.message, "error");
+  } finally {
+    if (btnPubAll) btnPubAll.disabled = false;
   }
 }
 
