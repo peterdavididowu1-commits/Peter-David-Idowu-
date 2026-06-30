@@ -300,6 +300,29 @@ if (cardNotifBtn) {
   });
 }
 
+// Brand-new CBT Dashboard Card click handler
+const btnCbtDashboardCard = document.getElementById("btnCbtDashboardCard");
+if (btnCbtDashboardCard) {
+  btnCbtDashboardCard.addEventListener("click", () => {
+    // Remove active style from all sidebar buttons
+    document.querySelectorAll(".sidebar-nav-btn").forEach(b => b.classList.remove("active"));
+    
+    // Hide all tab contents
+    document.querySelectorAll(".tab-content").forEach(content => {
+      content.classList.remove("active");
+    });
+    
+    // Show CBT tab content
+    const cbtTab = document.getElementById("tab-cbt");
+    if (cbtTab) {
+      cbtTab.classList.add("active");
+    }
+    
+    // Render student CBT dashboard
+    renderStudentCbtDashboard();
+  });
+}
+
 // Retrieve active timeline rollover configs
 async function loadTimelineAndTimelineConfigs() {
   try {
@@ -1097,16 +1120,16 @@ async function renderStudentCbtDashboard() {
         statusColor = "#28a745";
         statusBg = "rgba(40,167,69,0.1)";
         actionButtonHtml = `
-          <button class="btn" disabled style="opacity: 0.6; background-color: #28a745; color: white; cursor: not-allowed; font-weight: 700; font-size: 0.85rem; padding: 0.5rem 1rem; border: none; border-radius: 4px;">
-            <i class="fa-solid fa-circle-check"></i> Already Submitted
-          </button>
+          <div style="color: #28a745; font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0;">
+            <i class="fa-solid fa-circle-check"></i> You have already completed this examination.
+          </div>
         `;
       } else if (isPast) {
         statusLabel = "Closed";
         statusColor = "#dc3545";
         statusBg = "rgba(220,53,69,0.1)";
         actionButtonHtml = `
-          <button class="btn" disabled style="opacity: 0.6; background-color: #555; color: white; cursor: not-allowed; font-weight: 700; font-size: 0.85rem; padding: 0.5rem 1rem; border: none; border-radius: 4px;">
+          <button class="btn" disabled style="opacity: 0.6; background-color: #dc3545; color: white; cursor: not-allowed; font-weight: 700; font-size: 0.85rem; padding: 0.6rem 1.25rem; border: none; border-radius: 4px;">
             <i class="fa-solid fa-lock"></i> Examination Closed
           </button>
         `;
@@ -1115,16 +1138,16 @@ async function renderStudentCbtDashboard() {
         statusColor = "#F4B000";
         statusBg = "rgba(244,176,0,0.1)";
         actionButtonHtml = `
-          <button class="btn" disabled style="opacity: 0.6; background-color: #777; color: white; cursor: not-allowed; font-weight: 700; font-size: 0.85rem; padding: 0.5rem 1rem; border: none; border-radius: 4px;">
-            <i class="fa-solid fa-clock"></i> Not Yet Available
-          </button>
+          <div style="color: #b77a00; font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0;">
+            <i class="fa-solid fa-clock"></i> Examination Not Yet Open
+          </div>
         `;
       } else if (isOpen) {
-        statusLabel = "Open";
+        statusLabel = "Live";
         statusColor = "#28a745";
         statusBg = "rgba(40,167,69,0.1)";
         actionButtonHtml = `
-          <button class="btn btn-start-cbt-exam" data-id="${ex.id}" style="background-color: var(--primary); color: white; font-weight: 700; font-size: 0.85rem; padding: 0.5rem 1.25rem; cursor: pointer; border-radius: 4px; border: none; transition: background-color 0.2s;">
+          <button class="btn btn-start-cbt-exam" data-id="${ex.id}" style="background-color: #1F3B82; color: white; font-weight: 700; font-size: 0.9rem; padding: 0.65rem 1.5rem; cursor: pointer; border-radius: 4px; border: none; transition: background-color 0.2s; box-shadow: 0 2px 5px rgba(31,59,130,0.2);">
             <i class="fa-solid fa-play"></i> Start Examination
           </button>
         `;
@@ -1723,6 +1746,12 @@ async function submitExamination(isAutoTimeUp = false) {
 
   const resultDocId = `${currentStudentDoc.studentId.replace(/\//g, "-")}_${activeCbtExam.id}`;
 
+  const durationSeconds = activeCbtExam.duration * 60;
+  const timeUsedSeconds = Math.max(0, durationSeconds - cbtSecondsLeft);
+  const minsUsed = Math.floor(timeUsedSeconds / 60);
+  const secsUsed = timeUsedSeconds % 60;
+  const timeUsedStr = `${minsUsed}m ${secsUsed}s`;
+
   try {
     const resultRef = doc(db, "cbtResults", resultDocId);
     await setDoc(resultRef, {
@@ -1738,6 +1767,8 @@ async function submitExamination(isAutoTimeUp = false) {
       percentage: percentage,
       grade: grade,
       passed: passed,
+      timeUsed: timeUsedStr,
+      timeUsedSeconds: timeUsedSeconds,
       submittedAt: new Date().toISOString()
     });
 
