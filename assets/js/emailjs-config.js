@@ -8,10 +8,6 @@ export const DEFAULT_EMAILJS_CONFIG = {
   publicKey: "user_example_public_key_12345",
   serviceId: "service_example_dimabin",
   admissionTemplateId: "template_admission_confirm",
-  contactTemplateId: "template_contact_form",
-  adminNotificationTemplateId: "template_admin_notice",
-  studentNotificationTemplateId: "template_student_notice",
-  lecturerNotificationTemplateId: "template_lecturer_notice",
   updatedAt: new Date().toISOString()
 };
 
@@ -59,10 +55,6 @@ export async function saveEmailJSConfig(newConfig) {
     publicKey: newConfig.publicKey || "",
     serviceId: newConfig.serviceId || "",
     admissionTemplateId: newConfig.admissionTemplateId || "",
-    contactTemplateId: newConfig.contactTemplateId || "",
-    adminNotificationTemplateId: newConfig.adminNotificationTemplateId || "",
-    studentNotificationTemplateId: newConfig.studentNotificationTemplateId || "",
-    lecturerNotificationTemplateId: newConfig.lecturerNotificationTemplateId || "",
     updatedAt: new Date().toISOString()
   };
 
@@ -81,10 +73,6 @@ export async function prepareAndLogEmail(templateIdType, recipientName, recipien
   // Resolve which actual template ID to use
   let actualTemplateId = "";
   if (templateIdType === "admission") actualTemplateId = config.admissionTemplateId;
-  else if (templateIdType === "contact") actualTemplateId = config.contactTemplateId;
-  else if (templateIdType === "admin") actualTemplateId = config.adminNotificationTemplateId;
-  else if (templateIdType === "student") actualTemplateId = config.studentNotificationTemplateId;
-  else if (templateIdType === "lecturer") actualTemplateId = config.lecturerNotificationTemplateId;
   else actualTemplateId = templateIdType; // Raw fallback
 
   console.log(`=======================================================`);
@@ -96,13 +84,13 @@ export async function prepareAndLogEmail(templateIdType, recipientName, recipien
   console.log(`- Payload parameters:`, templateParams);
   console.log(`=======================================================`);
 
-  // If credentials are still example/dummy, do not initiate EmailJS sdk calls
-  if (config.publicKey.includes("example") || config.serviceId.includes("example")) {
-    console.log("ℹ️ EmailJS is currently in Simulation Mode (Dummy keys detected). No actual HTTP requests dispatched.");
+  // If credentials are still example/dummy or empty, do not initiate EmailJS sdk calls
+  if (config.publicKey.includes("example") || config.serviceId.includes("example") || !config.publicKey.trim() || !config.serviceId.trim()) {
+    console.log("ℹ️ EmailJS is currently in Simulation Mode (Dummy/empty keys detected). No actual HTTP requests dispatched.");
     return { success: true, mode: "simulation", message: "Email logged in system console successfully." };
   }
 
-  // Future actual integration using CDN EmailJS (or standard REST API to stay lightweight)
+  // Dispatch actual EmailJS HTTP request using EmailJS REST API
   try {
     const url = `https://api.emailjs.com/api/v1.0/email/send`;
     const payload = {
@@ -117,8 +105,6 @@ export async function prepareAndLogEmail(templateIdType, recipientName, recipien
     };
 
     console.log("🚀 Dispatched actual EmailJS HTTP request to API...");
-    // Future execution can uncomment the fetch call when keys are real:
-    /*
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -128,8 +114,8 @@ export async function prepareAndLogEmail(templateIdType, recipientName, recipien
       const txt = await res.text();
       throw new Error(txt || `HTTP status ${res.status}`);
     }
-    */
-    return { success: true, mode: "prepared", message: "Dispatched successfully." };
+    
+    return { success: true, mode: "sent", message: "Dispatched successfully." };
   } catch (error) {
     console.error("❌ EmailJS transmission failed:", error);
     return { success: false, error: error.message };

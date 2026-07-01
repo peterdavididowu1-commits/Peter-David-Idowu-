@@ -842,13 +842,35 @@ async function processApproval(id) {
       target: "All"
     });
 
-    // 6. Dispatch prepared EmailJS log/simulation
-    await prepareAndLogEmail("admission", app.fullName, app.email, {
-      matric_number: matricNumber,
-      student_id: studentId,
-      temporary_password: tempPassword,
-      academic_session: "2026/2027"
-    });
+    // 6. Dispatch EmailJS notification
+    let emailSent = false;
+    try {
+      const loginLink = window.location.origin + "/pages/student-portal.html";
+      const changePasswordInstruction = "Please make sure to change your temporary password after your first login for security purposes.";
+      
+      const emailParams = {
+        student_name: app.fullName || "Student",
+        to_name: app.fullName || "Student",
+        admission_number: matricNumber,
+        username: matricNumber,
+        matric_number: matricNumber,
+        temporary_password: tempPassword,
+        password: tempPassword,
+        student_portal_login_link: loginLink,
+        login_link: loginLink,
+        portal_link: loginLink,
+        change_password_message: changePasswordInstruction,
+        message_instruction: changePasswordInstruction,
+        academic_session: "2026/2027"
+      };
+
+      const emailResult = await prepareAndLogEmail("admission", app.fullName, app.email, emailParams);
+      if (emailResult && emailResult.success) {
+        emailSent = true;
+      }
+    } catch (emailErr) {
+      console.error("EmailJS sending error:", emailErr);
+    }
 
     closeDetailsModal();
 
@@ -859,6 +881,12 @@ async function processApproval(id) {
     await loadApplications();
     await loadStudents();
     await loadStats();
+
+    if (emailSent) {
+      window.showToast("Admission approved successfully. Login credentials have been sent to the student's email.", "success");
+    } else {
+      window.showToast("Admission approved successfully, but the confirmation email could not be sent. Please try sending it again.", "warning");
+    }
 
   } catch (err) {
     window.showToast("Approval sequence failed: " + err.message, "error");
@@ -992,18 +1020,10 @@ async function loadSettings() {
     const elKey = document.getElementById("emailjsPublicKey");
     const elSrv = document.getElementById("emailjsServiceId");
     const elAdm = document.getElementById("emailjsAdmissionId");
-    const elCnt = document.getElementById("emailjsContactId");
-    const elAdmN = document.getElementById("emailjsAdminNotificationId");
-    const elStuN = document.getElementById("emailjsStudentNotificationId");
-    const elLecN = document.getElementById("emailjsLecturerNotificationId");
 
     if (elKey) elKey.value = config.publicKey;
     if (elSrv) elSrv.value = config.serviceId;
     if (elAdm) elAdm.value = config.admissionTemplateId;
-    if (elCnt) elCnt.value = config.contactTemplateId;
-    if (elAdmN) elAdmN.value = config.adminNotificationTemplateId;
-    if (elStuN) elStuN.value = config.studentNotificationTemplateId;
-    if (elLecN) elLecN.value = config.lecturerNotificationTemplateId;
   } catch (err) {
     console.warn("⚠️ Failed to load EmailJS configuration settings:", err);
   }
@@ -1039,20 +1059,12 @@ if (btnSaveEmailJS) {
     const key = document.getElementById("emailjsPublicKey").value.trim();
     const srv = document.getElementById("emailjsServiceId").value.trim();
     const adm = document.getElementById("emailjsAdmissionId").value.trim();
-    const cnt = document.getElementById("emailjsContactId").value.trim();
-    const admN = document.getElementById("emailjsAdminNotificationId").value.trim();
-    const stuN = document.getElementById("emailjsStudentNotificationId").value.trim();
-    const lecN = document.getElementById("emailjsLecturerNotificationId").value.trim();
 
     try {
       await saveEmailJSConfig({
         publicKey: key,
         serviceId: srv,
-        admissionTemplateId: adm,
-        contactTemplateId: cnt,
-        adminNotificationTemplateId: admN,
-        studentNotificationTemplateId: stuN,
-        lecturerNotificationTemplateId: lecN
+        admissionTemplateId: adm
       });
       window.showToast("EmailJS notification parameters secured system-wide!", "success");
     } catch (err) {
