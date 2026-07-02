@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admission Status Checker | DIVINE MANDATE BIBLE INSTITUTE (DIMABIN)</title>
+  
+  <!-- Browser Favicon -->
+  <link rel="icon" type="image/jpeg" href="../assets/images/logo.jpg">
+  
+  <!-- FontAwesome Icons & Stylesheets -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="../assets/css/style.css">
+
+  <style>
+    .status-hero {
+      background: linear-gradient(rgba(11, 25, 44, 0.88), rgba(11, 25, 44, 0.94)), url('../assets/images/classroom.jpg') center/cover no-repeat;
+      padding: 6rem 0 4rem 0;
+      text-align: center;
+      color: var(--bg-white);
+    }
+    .status-container {
+      max-width: 650px;
+      margin: -2.5rem auto 4rem auto;
+      padding: 0 1.5rem;
+      position: relative;
+      z-index: 10;
+    }
+    .status-card {
+      background-color: var(--bg-white);
+      border-radius: var(--border-radius-lg);
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow-lg);
+      padding: 3rem 2.5rem;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1.25rem;
+      border-radius: 50px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      margin-bottom: 1.5rem;
+    }
+    .status-pending {
+      background-color: rgba(212, 175, 55, 0.12);
+      color: #b39200;
+      border: 1px solid rgba(212, 175, 55, 0.3);
+    }
+    .status-approved {
+      background-color: rgba(40, 167, 69, 0.12);
+      color: #28a745;
+      border: 1px solid rgba(40, 167, 69, 0.3);
+    }
+    .status-rejected {
+      background-color: rgba(220, 53, 69, 0.12);
+      color: #dc3545;
+      border: 1px solid rgba(220, 53, 69, 0.3);
+    }
+    .result-info-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.5rem 0;
+    }
+    .result-info-table th {
+      text-align: left;
+      padding: 0.75rem 1rem;
+      background-color: var(--bg-slate);
+      color: var(--primary);
+      font-weight: 700;
+      border: 1px solid var(--border-color);
+      width: 40%;
+    }
+    .result-info-table td {
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--border-color);
+      color: var(--text-color);
+    }
+    .credentials-box {
+      background-color: var(--bg-slate);
+      border: 2px dashed var(--accent);
+      border-radius: var(--border-radius-md);
+      padding: 1.5rem;
+      margin-top: 1.5rem;
+      position: relative;
+    }
+    .credentials-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .credentials-item:last-child {
+      border-bottom: none;
+    }
+    .credentials-label {
+      font-weight: 700;
+      color: var(--primary);
+    }
+    .credentials-value {
+      font-family: monospace;
+      font-weight: 700;
+      color: var(--text-color);
+    }
+    /* Loading Spinner */
+    .spinner-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(11, 25, 44, 0.7);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: var(--accent);
+      animation: spin 1s ease-in-out infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Sticky Header Navigation -->
+  <header>
+    <div class="container nav-bar">
+      <!-- Logo and branding on the left -->
+      <a href="../index.html" class="logo-container">
+        <img src="../assets/images/logo.jpg" alt="DIMABIN Logo" class="logo-img" onerror="this.src='https://placehold.co/100x100?text=DIMABIN';">
+        <div class="logo-text">
+          <span class="logo-title">DIMABIN</span>
+          <span class="logo-subtitle">Citadel of Learning</span>
+        </div>
+      </a>
+
+      <!-- Desktop Navigation Menu -->
+      <nav>
+        <ul class="nav-menu">
+          <li><a href="../index.html" class="nav-link">Home</a></li>
+          <li><a href="about.html" class="nav-link">About</a></li>
+          <li><a href="admissions.html" class="nav-link active">Admissions</a></li>
+          <li class="dropdown">
+            <a href="#" class="nav-link dropdown-toggle">Portal <i class="fa-solid fa-chevron-down" style="font-size: 0.7rem;"></i></a>
+            <ul class="dropdown-menu">
+              <li><a href="student-portal.html" class="dropdown-item">Student Portal</a></li>
+              <li><a href="lecturer-portal.html" class="dropdown-item">Lecturer Portal</a></li>
+              <li><a href="admin-portal.html" class="dropdown-item">Admin Portal</a></li>
+            </ul>
+          </li>
+          <li><a href="contact.html" class="nav-link">Contact</a></li>
+        </ul>
+      </nav>
+
+      <!-- Desktop Quick Apply CTA -->
+      <div class="flex-row" style="gap: 1rem;">
+        <a href="admissions.html" class="btn btn-primary d-none-md">Apply Now</a>
+        <button class="mobile-toggle" id="mobileToggle" aria-label="Toggle Navigation">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Mobile Navigation Overlay & Menu -->
+  <div class="mobile-menu-overlay" id="mobileMenuOverlay"></div>
+  <div class="mobile-menu" id="mobileMenu">
+    <ul class="mobile-menu-list">
+      <li><a href="../index.html" class="nav-link">Home</a></li>
+      <li><a href="about.html" class="nav-link">About</a></li>
+      <li><a href="admissions.html" class="nav-link active">Admissions</a></li>
+      <li class="mobile-dropdown">
+        <a href="#" class="nav-link mobile-dropdown-toggle">Portal <i class="fa-solid fa-chevron-down" style="font-size: 0.8rem; margin-left: 4px;"></i></a>
+        <ul class="mobile-submenu" style="list-style: none; padding-left: 1.5rem; margin-top: 0.5rem; display: none; flex-direction: column; gap: 0.75rem;">
+          <li><a href="student-portal.html" class="nav-link" style="font-size: 0.9rem; opacity: 0.9;">Student Portal</a></li>
+          <li><a href="lecturer-portal.html" class="nav-link" style="font-size: 0.9rem; opacity: 0.9;">Lecturer Portal</a></li>
+          <li><a href="admin-portal.html" class="nav-link" style="font-size: 0.9rem; opacity: 0.9;">Admin Portal</a></li>
+        </ul>
+      </li>
+      <li><a href="contact.html" class="nav-link">Contact</a></li>
+      <li style="margin-top: 1rem;"><a href="admissions.html" class="btn btn-accent text-center" style="width: 100%;">Apply Now</a></li>
+    </ul>
+  </div>
+
+  <!-- Hero Section -->
+  <section class="status-hero">
+    <div class="container">
+      <div class="hero-content">
+        <div class="hero-motto">Admission Status Checker</div>
+        <h2>Portal Verification</h2>
+        <div class="hero-subtitle">Check your application status and access your academic portal credentials</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Status Checker Section -->
+  <div class="status-container">
+    <div class="status-card">
+      
+      <!-- Input Search Container -->
+      <div id="searchContainer">
+        <div style="text-align: center; margin-bottom: 2rem;">
+          <i class="fa-solid fa-graduation-cap" style="font-size: 3.5rem; color: var(--accent);"></i>
+          <h3 class="font-display" style="color: var(--primary); margin-top: 1rem; font-size: 1.6rem;">Check Admission Status</h3>
+          <p style="color: var(--text-muted); font-size: 0.95rem;">Enter your official Application Number below to retrieve your admission decision.</p>
+        </div>
+
+        <form id="checkerForm" style="display: flex; flex-direction: column; gap: 1.5rem;">
+          <div class="form-group">
+            <label for="searchAppNum" style="font-weight: 700; color: var(--primary); margin-bottom: 0.5rem; display: block;">Application Number <span style="color: red;">*</span></label>
+            <input type="text" id="searchAppNum" class="form-control" placeholder="e.g. DIMABIN/APP/2026/000045" required style="width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--border-color); border-radius: var(--border-radius-md); font-size: 1rem;">
+          </div>
+
+          <div class="form-group">
+            <label for="searchDob" style="font-weight: 700; color: var(--primary); margin-bottom: 0.5rem; display: block;">Date of Birth <span style="color: var(--text-muted); font-weight: normal; font-size: 0.85rem;">(Recommended for security verification)</span></label>
+            <input type="date" id="searchDob" class="form-control" style="width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--border-color); border-radius: var(--border-radius-md); font-size: 1rem;">
+          </div>
+
+          <button type="submit" class="btn btn-primary" style="width: 100%; padding: 1rem; font-size: 1rem; font-weight: 700; border-radius: var(--border-radius-md); display: flex; align-items: center; justify-content: center; gap: 0.5rem; cursor: pointer;">
+            <i class="fa-solid fa-circle-check"></i> Check Admission Status
+          </button>
+        </form>
+      </div>
+
+      <!-- Result View Container (Dynamically populated) -->
+      <div id="resultContainer" style="display: none;">
+        <!-- Filled by JS -->
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div class="spinner-overlay" id="loadingOverlay">
+    <div style="text-align: center; color: white;">
+      <div class="spinner" style="margin: 0 auto 1rem auto;"></div>
+      <div style="font-weight: 700; font-size: 1.1rem; letter-spacing: 0.5px;">Searching Database...</div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <div class="grid-4 footer-top">
+        <div class="footer-col" style="grid-column: span 1.5;">
+          <div class="footer-logo-title">DIMABIN</div>
+          <div class="footer-logo-sub">Divine Mandate Bible Institute</div>
+          <p class="footer-about">
+            An Interdenominational Citadel of Learning built to raise equipped, biblically sound, and ethically outstanding Christian leaders.
+          </p>
+          <div class="footer-socials">
+            <a href="#" class="social-btn" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
+            <a href="#" class="social-btn" aria-label="Twitter"><i class="fa-brands fa-twitter"></i></a>
+            <a href="#" class="social-btn" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
+            <a href="#" class="social-btn" aria-label="YouTube"><i class="fa-brands fa-youtube"></i></a>
+          </div>
+        </div>
+
+        <div class="footer-col">
+          <h3>Quick Links</h3>
+          <ul class="footer-links">
+            <li><a href="../index.html">Home</a></li>
+            <li><a href="about.html">About Us</a></li>
+            <li><a href="admissions.html">Admissions</a></li>
+            <li><a href="contact.html">Contact Us</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h3>Institute Portals</h3>
+          <ul class="footer-links">
+            <li><a href="student-portal.html"><i class="fa-solid fa-user-graduate"></i> Student Portal</a></li>
+            <li><a href="lecturer-portal.html"><i class="fa-solid fa-chalkboard-user"></i> Lecturer Portal</a></li>
+            <li><a href="admin-portal.html"><i class="fa-solid fa-user-shield"></i> Admin Portal</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h3>Contact Us</h3>
+          <ul class="footer-contact-list">
+            <li>
+              <i class="fa-solid fa-location-dot"></i>
+              <span>Goshen 13, Kusimo Street, Kemta, Oke-Ola, Idi-Aba, Abeokuta, Ogun State, Nigeria.</span>
+            </li>
+            <li>
+              <i class="fa-solid fa-phone"></i>
+              <span>0803 819 4611<br>0806 218 6974<br>0803 728 2082</span>
+            </li>
+            <li>
+              <i class="fa-solid fa-envelope"></i>
+              <span>dimabin233@gmail.com<br>olalekan16650@gmail.com</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <div class="footer-bottom-wrap">
+          <p>© 2026 Divine Mandate Bible Institute. All Rights Reserved. Designed to academic specifications.</p>
+          <div style="display: flex; gap: 1.5rem;">
+            <a href="#" style="opacity: 0.8; font-size: 0.8rem;">Privacy Policy</a>
+            <a href="#" style="opacity: 0.8; font-size: 0.8rem;">Terms of Use</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="../assets/js/main.js"></script>
+
+  <script type="module">
+    import { db } from '../assets/js/firebase-init.js';
+    import { collection, query, where, getDocs } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+    const checkerForm = document.getElementById('checkerForm');
+    const searchAppNum = document.getElementById('searchAppNum');
+    const searchDob = document.getElementById('searchDob');
+    const searchContainer = document.getElementById('searchContainer');
+    const resultContainer = document.getElementById('resultContainer');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+
+    // Clipboard copy tool
+    window.copyCredentialsToClipboard = function(username, password) {
+      const textToCopy = `Student Portal Credentials:\nUsername/Matric: ${username}\nTemporary Password: ${password}\nPortal Link: ${window.location.origin}/pages/student-portal.html`;
+      navigator.clipboard.writeText(textToCopy)
+        .then(() => {
+          if (window.showToast) {
+            window.showToast("Credentials successfully copied to clipboard!", "success");
+          } else {
+            alert("Credentials successfully copied to clipboard!");
+          }
+        })
+        .catch(err => {
+          console.error("Clipboard copy failed:", err);
+          alert("Could not copy credentials automatically. Please highlight and copy manually.");
+        });
+    }
+
+    // Reset view to search form
+    window.resetSearch = function() {
+      resultContainer.style.display = 'none';
+      searchContainer.style.display = 'block';
+      checkerForm.reset();
+    }
+
+    checkerForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const appNoInput = searchAppNum.value.trim();
+      const dobInput = searchDob.value;
+
+      loadingOverlay.style.display = 'flex';
+
+      try {
+        // Query applications collection
+        const appRef = collection(db, "applications");
+        const qApp = query(appRef, where("applicationNumber", "==", appNoInput));
+        const appSnap = await getDocs(qApp);
+
+        if (appSnap.empty) {
+          renderNotFound();
+          return;
+        }
+
+        const appDoc = appSnap.docs[0].data();
+
+        // DOB Verification (Security check)
+        if (dobInput && appDoc.dateOfBirth) {
+          // Compare YYYY-MM-DD strings
+          if (dobInput !== appDoc.dateOfBirth) {
+            renderAccessDenied();
+            return;
+          }
+        }
+
+        const admissionStatus = appDoc.admissionStatus || "Pending";
+        const studentName = appDoc.fullName || "Applicant";
+        const programme = appDoc.programme || "Diploma in Theology";
+        const session = appDoc.academicSession || "2026/2027";
+
+        if (admissionStatus === "Pending") {
+          renderPending(studentName, appNoInput, programme, session);
+        } else if (admissionStatus === "Rejected") {
+          renderRejected(studentName);
+        } else if (admissionStatus === "Approved") {
+          // Retrieve Student Credentials from students collection
+          const studentsRef = collection(db, "students");
+          const qStudent = query(studentsRef, where("applicationNumber", "==", appNoInput));
+          const studentSnap = await getDocs(qStudent);
+
+          if (!studentSnap.empty) {
+            const studentDoc = studentSnap.docs[0].data();
+            const studentId = studentDoc.studentId || "N/A";
+            const matricNumber = studentDoc.matricNumber || "N/A";
+            const username = studentDoc.loginCredentials?.username || matricNumber;
+            const passwordInDb = studentDoc.loginCredentials?.password;
+
+            // Compute expected temporary password to check activation status
+            let cleanDob = "20260101";
+            if (studentDoc.dateOfBirth) {
+              const digits = studentDoc.dateOfBirth.replace(/\D/g, '');
+              if (digits.length >= 4) cleanDob = digits;
+            }
+            const expectedTempPassword = `Dob${cleanDob}`;
+
+            // Check if password has been updated (first login protection)
+            const isActivated = passwordInDb !== expectedTempPassword;
+
+            renderApproved(studentName, programme, session, studentId, matricNumber, username, passwordInDb, isActivated);
+          } else {
+            // Fallback if approved but student document is not created yet
+            renderApproved(studentName, programme, session, "PENDING GENERATION", "PENDING GENERATION", "PENDING", "PENDING", false);
+          }
+        } else {
+          renderPending(studentName, appNoInput, programme, session);
+        }
+
+      } catch (err) {
+        console.error("Error checking admission status:", err);
+        if (window.dimabinAlert) {
+          await window.dimabinAlert(`Error searching portal databases: ${err.message}`, "error", "System Error");
+        } else {
+          alert(`Error searching portal databases: ${err.message}`);
+        }
+      } finally {
+        loadingOverlay.style.display = 'none';
+      }
+    });
+
+    function renderNotFound() {
+      searchContainer.style.display = 'none';
+      resultContainer.innerHTML = `
+        <div style="text-align: center; padding: 2rem 0;">
+          <div style="font-size: 4rem; margin-bottom: 1.5rem; color: #dc3545;">❌</div>
+          <h3 class="font-display" style="color: #dc3545; font-size: 1.5rem; margin-bottom: 1rem;">Application Not Found</h3>
+          <p style="color: var(--text-muted); line-height: 1.6; margin-bottom: 2rem; max-width: 450px; margin-left: auto; margin-right: auto;">
+            Please verify your <strong>Application Number</strong> and try again. Ensure it matches the format on your slip exactly.
+          </p>
+          <button onclick="resetSearch()" class="btn btn-outline-primary" style="padding: 0.75rem 1.5rem; font-weight: 700; border-radius: var(--border-radius-md);">
+            <i class="fa-solid fa-arrow-left"></i> Try Again
+          </button>
+        </div>
+      `;
+      resultContainer.style.display = 'block';
+    }
+
+    function renderAccessDenied() {
+      searchContainer.style.display = 'none';
+      resultContainer.innerHTML = `
+        <div style="text-align: center; padding: 2rem 0;">
+          <div style="font-size: 4rem; margin-bottom: 1.5rem; color: #dc3545;">🔒</div>
+          <h3 class="font-display" style="color: #dc3545; font-size: 1.5rem; margin-bottom: 1rem;">Access Verification Failed</h3>
+          <p style="color: var(--text-muted); line-height: 1.6; margin-bottom: 2rem; max-width: 450px; margin-left: auto; margin-right: auto;">
+            The Date of Birth entered does not match our records for this Application Number. For security, we cannot show status details without a matching DOB.
+          </p>
+          <button onclick="resetSearch()" class="btn btn-outline-primary" style="padding: 0.75rem 1.5rem; font-weight: 700; border-radius: var(--border-radius-md);">
+            <i class="fa-solid fa-arrow-left"></i> Re-verify Details
+          </button>
+        </div>
+      `;
+      resultContainer.style.display = 'block';
+    }
+
+    function renderPending(studentName, appNum, programme, session) {
+      searchContainer.style.display = 'none';
+      resultContainer.innerHTML = `
+        <div style="text-align: center; padding: 1.5rem 0;">
+          <div class="status-badge status-pending">
+            🟡 APPLICATION UNDER REVIEW
+          </div>
+          <h3 class="font-display" style="color: var(--primary); margin-bottom: 0.5rem; font-size: 1.6rem;">Hello ${studentName}</h3>
+          <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 2rem;">Your application is currently being evaluated by the Admissions Board.</p>
+          
+          <table class="result-info-table">
+            <tr>
+              <th>Application Number</th>
+              <td>${appNum}</td>
+            </tr>
+            <tr>
+              <th>Programme</th>
+              <td>${programme}</td>
+            </tr>
+            <tr>
+              <th>Academic Session</th>
+              <td>${session}</td>
+            </tr>
+            <tr>
+              <th>Evaluation Status</th>
+              <td style="font-weight: 700; color: #b39200;">Pending Review</td>
+            </tr>
+          </table>
+
+          <div style="background-color: rgba(212, 175, 55, 0.05); border-left: 4px solid var(--accent); padding: 1.25rem; border-radius: var(--border-radius-md); text-align: left; margin: 2rem 0; font-size: 0.95rem; color: var(--text-muted); line-height: 1.6;">
+            <i class="fa-solid fa-clock-rotate-left" style="color: var(--accent); margin-right: 0.5rem;"></i>
+            Your application is currently under review by the Admissions Office. Once a decision is made, your status will update here automatically. Please check again later.
+          </div>
+
+          <button onclick="resetSearch()" class="btn btn-outline-primary" style="padding: 0.75rem 1.5rem; font-weight: 700; border-radius: var(--border-radius-md); width: 100%;">
+            <i class="fa-solid fa-arrow-left"></i> Back to Status Checker
+          </button>
+        </div>
+      `;
+      resultContainer.style.display = 'block';
+    }
+
+    function renderRejected(studentName) {
+      searchContainer.style.display = 'none';
+      resultContainer.innerHTML = `
+        <div style="text-align: center; padding: 1.5rem 0;">
+          <div class="status-badge status-rejected">
+            🔴 APPLICATION NOT APPROVED
+          </div>
+          <h3 class="font-display" style="color: #dc3545; margin-bottom: 1.5rem; font-size: 1.6rem;">Dear ${studentName}</h3>
+          
+          <p style="color: var(--text-color); font-size: 1.05rem; line-height: 1.7; max-width: 500px; margin: 0 auto 2rem auto;">
+            We appreciate your interest in <strong>Divine Mandate Bible Institute (DIMABIN)</strong>.<br><br>
+            Unfortunately, your application has not been approved for admission at this time. We pray for God's clear guidance and empowerment in your continuing ministerial path.
+          </p>
+
+          <div style="background-color: #fffaf0; border-left: 4px solid #dd6b20; padding: 1.25rem; border-radius: var(--border-radius-md); text-align: left; margin: 2rem 0; font-size: 0.95rem; color: var(--text-muted); line-height: 1.6;">
+            <i class="fa-solid fa-circle-question" style="color: #dd6b20; margin-right: 0.5rem;"></i>
+            For further enquiries, please contact the Admissions Office or registrar desk.
+          </div>
+
+          <button onclick="resetSearch()" class="btn btn-outline-primary" style="padding: 0.75rem 1.5rem; font-weight: 700; border-radius: var(--border-radius-md); width: 100%;">
+            <i class="fa-solid fa-arrow-left"></i> Back to Status Checker
+          </button>
+        </div>
+      `;
+      resultContainer.style.display = 'block';
+    }
+
+    function renderApproved(studentName, programme, session, studentId, matricNumber, username, password, isActivated) {
+      searchContainer.style.display = 'none';
+      
+      let credentialMarkup = "";
+      if (isActivated) {
+        credentialMarkup = `
+          <div style="background-color: rgba(40, 167, 69, 0.05); border: 1px solid rgba(40, 167, 69, 0.3); border-radius: var(--border-radius-lg); padding: 1.5rem; margin: 2rem 0; text-align: left;">
+            <h4 style="color: #28a745; margin-bottom: 0.75rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
+              <i class="fa-solid fa-circle-check"></i> Portal Activated
+            </h4>
+            <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 1rem;">
+              Your Student Portal has already been activated and your temporary password was updated. Please log in using your current password.
+            </p>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; background: var(--bg-slate); padding: 1rem; border-radius: var(--border-radius-md);">
+              <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
+                <span style="font-weight: 700; color: var(--primary);">Student ID:</span>
+                <span style="font-family: monospace; font-weight: 700;">${studentId}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; font-size: 0.9rem; border-top: 1px solid var(--border-color); padding-top: 0.5rem; margin-top: 0.5rem;">
+                <span style="font-weight: 700; color: var(--primary);">Username:</span>
+                <span style="font-family: monospace; font-weight: 700;">${username}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      } else {
+        credentialMarkup = `
+          <div class="credentials-box">
+            <h4 style="color: var(--primary); margin-bottom: 0.5rem; font-weight: 700; font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem;">
+              <i class="fa-solid fa-key" style="color: var(--accent);"></i> Account Login Credentials
+            </h4>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Use the details below to complete your first portal login and change your password.</p>
+            
+            <div class="credentials-item">
+              <span class="credentials-label">Username / Matric</span>
+              <span class="credentials-value">${username}</span>
+            </div>
+            <div class="credentials-item">
+              <span class="credentials-label">Temporary Password</span>
+              <span class="credentials-value">${password}</span>
+            </div>
+
+            <button onclick="copyCredentialsToClipboard('${username}', '${password}')" class="btn btn-outline-primary" style="width: 100%; margin-top: 1.25rem; padding: 0.6rem; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-weight: bold;">
+              <i class="fa-solid fa-copy"></i> Copy Login Credentials
+            </button>
+          </div>
+        `;
+      }
+
+      resultContainer.innerHTML = `
+        <div style="text-align: center; padding: 1rem 0;">
+          <div class="status-badge status-approved">
+            🎉 CONGRATULATIONS!
+          </div>
+          <h3 class="font-display" style="color: var(--primary); margin-bottom: 0.5rem; font-size: 1.6rem;">Dear ${studentName}</h3>
+          <p style="color: #28a745; font-size: 1.1rem; font-weight: 700; margin-bottom: 2rem; letter-spacing: 0.25px;">Your admission has been officially approved!</p>
+          
+          <table class="result-info-table">
+            <tr>
+              <th>Programme</th>
+              <td>${programme}</td>
+            </tr>
+            <tr>
+              <th>Academic Session</th>
+              <td>${session}</td>
+            </tr>
+            <tr>
+              <th>Student ID</th>
+              <td style="font-weight: 700; color: var(--primary);">${studentId}</td>
+            </tr>
+            <tr>
+              <th>Matric Number</th>
+              <td style="font-weight: 700; color: var(--primary);">${matricNumber}</td>
+            </tr>
+          </table>
+
+          ${credentialMarkup}
+
+          <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 2rem;">
+            <a href="student-portal.html" class="btn btn-primary" style="width: 100%; padding: 1rem; font-weight: 700; border-radius: var(--border-radius-md); display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+              <i class="fa-solid fa-arrow-right-to-bracket"></i> Go To Student Portal
+            </a>
+            <button onclick="resetSearch()" class="btn btn-outline-primary" style="width: 100%; padding: 0.75rem; font-weight: 700; border-radius: var(--border-radius-md);">
+              <i class="fa-solid fa-arrow-left"></i> Check Another Status
+            </button>
+          </div>
+        </div>
+      `;
+      resultContainer.style.display = 'block';
+    }
+  </script>
+
+</body>
+</html>
