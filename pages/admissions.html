@@ -1611,19 +1611,6 @@
       return appNumber;
     }
 
-    // Handle form submit
-    const form = document.getElementById('admissionForm');
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-
-      if (!validateStep(5)) {
-        return;
-      }
-
-      // Activate loader
-      loadingOverlay.style.display = 'flex';
-      btnSubmit.disabled = true;
-
     // Global application cache
     let currentApplication = null;
 
