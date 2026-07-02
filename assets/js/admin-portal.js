@@ -3255,7 +3255,11 @@ async function handleWorkflowAction(actionName) {
   const courseCode = selectedReviewSheet.courseCode;
   const session = selectedReviewSheet.academicSession;
   const semester = selectedReviewSheet.semester;
-  const docId = `${courseCode}_${session.replace(/\//g, "-")}_${semester}`;
+
+  const safeCourseCode = courseCode.replace(/\//g, "-").trim();
+  const safeSession = session.replace(/\//g, "-").trim();
+  const safeSemester = semester.replace(/\//g, "-").trim();
+  const docId = `${safeCourseCode}_${safeSession}_${safeSemester}`;
 
   const confirmAction = await window.dimabinConfirm(`Are you sure you want to trigger "${actionName}" on this grading sheet?`, `Trigger "${actionName}" Decision`);
   if (!confirmAction) return;
@@ -3309,16 +3313,7 @@ async function handleWorkflowAction(actionName) {
       window.showToast("Results sheet approved successfully.", "success");
 
     } else if (actionName === "Published") {
-      await updateDoc(doc(db, "results", docId), {
-        status: "Published",
-        adminComment: comments,
-        publishedBy: adminIdVal,
-        publishedByName: approverName,
-        publishedDate: dateStr,
-        publishedTime: timeStr,
-        publishedTimestamp: timestamp,
-        lastUpdated: timestamp
-      });
+      const { runTransaction } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
 
       // Fetch credits for each student record
       const coursesSnap = await getDocs(collection(db, "courses"));
@@ -3330,39 +3325,72 @@ async function handleWorkflowAction(actionName) {
         }
       });
 
-      // Write student-level results to publishedResults
-      const studentsList = selectedReviewSheet.students || [];
-      const batchPromises = studentsList.map(async std => {
-        const pubDocId = `pub_${std.studentId}_${courseCode}_${session.replace(/\//g, "-")}_${semester}`;
-        const studentPayload = {
-          studentId: std.studentId,
-          fullName: std.fullName,
-          matricNumber: std.matricNumber,
-          courseCode: courseCode,
-          courseTitle: document.getElementById("reviewMetaTitle").textContent || "Theology Course",
-          creditUnit: creditUnit,
-          attendance: std.attendance !== undefined ? std.attendance : 0,
-          assignment: std.assignment !== undefined ? std.assignment : 0,
-          test: std.test !== undefined ? std.test : 0,
-          practical: std.practical !== undefined ? std.practical : 0,
-          examScore: std.examScore !== undefined ? std.examScore : 0,
-          total: std.total,
-          grade: std.grade,
-          gp: std.gp,
-          remark: std.remark,
-          semester: semester,
-          academicSession: session,
+      const resultsRef = doc(db, "results", docId);
+
+      await runTransaction(db, async (transaction) => {
+        const resultsSnap = await transaction.get(resultsRef);
+        if (!resultsSnap.exists()) {
+          throw new Error("Approved results sheet not found.");
+        }
+
+        const resultsData = resultsSnap.data();
+
+        // Prevent duplicate publications
+        if (resultsData.status === "Published") {
+          throw new Error("This results sheet has already been published.");
+        }
+
+        const studentsList = resultsData.students || [];
+        if (studentsList.length === 0) {
+          throw new Error("No student records exist in this results sheet.");
+        }
+
+        studentsList.forEach(std => {
+          const safeStudentId = std.studentId.replace(/\//g, "-").trim();
+          const pubDocId = `pub_${safeStudentId}_${safeCourseCode}_${safeSession}_${safeSemester}`;
+          const pubRef = doc(db, "publishedResults", pubDocId);
+
+          const studentPayload = {
+            studentId: std.studentId,
+            fullName: std.fullName,
+            matricNumber: std.matricNumber,
+            courseCode: courseCode,
+            courseTitle: document.getElementById("reviewMetaTitle").textContent || "Theology Course",
+            creditUnit: creditUnit,
+            attendance: std.attendance !== undefined ? std.attendance : 0,
+            assignment: std.assignment !== undefined ? std.assignment : 0,
+            test: std.test !== undefined ? std.test : 0,
+            practical: std.practical !== undefined ? std.practical : 0,
+            examScore: std.examScore !== undefined ? std.examScore : 0,
+            total: std.total,
+            grade: std.grade,
+            gp: std.gp,
+            remark: std.remark,
+            semester: semester,
+            academicSession: session,
+            status: "Published",
+            publishedBy: approverName,
+            publishedDate: dateStr,
+            publishedTime: timeStr,
+            publishedAt: timestamp,
+            publishedTimestamp: timestamp
+          };
+
+          transaction.set(pubRef, studentPayload);
+        });
+
+        transaction.update(resultsRef, {
           status: "Published",
-          publishedBy: approverName,
+          adminComment: comments,
+          publishedBy: adminIdVal,
+          publishedByName: approverName,
           publishedDate: dateStr,
           publishedTime: timeStr,
-          publishedAt: timestamp,
-          publishedTimestamp: timestamp
-        };
-        await setDoc(doc(db, "publishedResults", pubDocId), studentPayload);
+          publishedTimestamp: timestamp,
+          lastUpdated: timestamp
+        });
       });
 
-      await Promise.all(batchPromises);
       window.showToast("Results published successfully! Student visibilities committed.", "success");
     }
 

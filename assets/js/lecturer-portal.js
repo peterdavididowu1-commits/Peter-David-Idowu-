@@ -1648,105 +1648,149 @@ async function handleResultPublishFlow() {
   window.showToast("Publishing results to student portals...", "info");
 
   try {
-    const docId = `${courseCode}_${timelineSettings.session.replace(/\//g, "-")}_${timelineSettings.semester}`;
-    const resultsRef = doc(db, "results", docId);
-    const resultsSnap = await getDoc(resultsRef);
+    const { runTransaction, doc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
 
-    if (!resultsSnap.exists()) {
-      window.showToast("Approved results sheet not found.", "error");
-      if (btnPub) btnPub.disabled = false;
-      return;
+    const safeCourseCode = courseCode.replace(/\//g, "-").trim();
+    const safeSession = timelineSettings.session.replace(/\//g, "-").trim();
+    const safeSemester = timelineSettings.semester.replace(/\//g, "-").trim();
+
+    if (!safeCourseCode || !safeSession || !safeSemester) {
+      throw new Error("Invalid publication coordinates: course code, session, or semester is missing.");
     }
 
-    const resultsData = resultsSnap.data();
-    if (resultsData.status !== "Approved") {
-      window.showToast("Only approved results can be published.", "warning");
-      if (btnPub) btnPub.disabled = false;
-      return;
+    const docId = `${safeCourseCode}_${safeSession}_${safeSemester}`;
+    const resultsPath = ["results", docId];
+    if (resultsPath.some(seg => !seg || seg.trim() === "")) {
+      throw new Error("Invalid document reference segments for results document.");
     }
+    const resultsRef = doc(db, ...resultsPath);
 
-    const now = new Date();
-    const dateStr = now.toLocaleDateString();
-    const timeStr = now.toLocaleTimeString();
-    const timestamp = now.toISOString();
+    await runTransaction(db, async (transaction) => {
+      // 1. Read necessary documents first (inside transaction)
+      const resultsSnap = await transaction.get(resultsRef);
 
-    const lecturerName = currentLecturerDoc ? (currentLecturerDoc.fullName || "Lecturer") : "Lecturer";
-    const lecturerId = currentLecturerDoc ? (currentLecturerDoc.lecturerId || "Unknown Lecturer") : "Unknown Lecturer";
+      const histPath = ["approvalHistory", docId];
+      if (histPath.some(seg => !seg || seg.trim() === "")) {
+        throw new Error("Invalid approval history reference segments.");
+      }
+      const histRef = doc(db, ...histPath);
+      const histSnap = await transaction.get(histRef);
 
-    // Update workflow status of main results doc to Published
-    await updateDoc(resultsRef, {
-      status: "Published",
-      publishedBy: lecturerId,
-      publishedByName: lecturerName,
-      publishedDate: dateStr,
-      publishedTime: timeStr,
-      publishedTimestamp: timestamp,
-      lastUpdated: timestamp
-    });
+      // 2. Business rules validation
+      if (!resultsSnap.exists()) {
+        throw new Error("Approved results sheet not found.");
+      }
 
-    // Determine course details for the student records
-    const matchedCourse = officialCoursesList.find(c => c.courseCode === courseCode);
-    const courseTitle = matchedCourse ? (matchedCourse.courseTitle || matchedCourse.title || "Theology Course") : "Theology Course";
-    const creditUnit = matchedCourse ? parseInt(matchedCourse.creditUnit || matchedCourse.credits || 3) : 3;
+      const resultsData = resultsSnap.data();
 
-    // Copy to publishedResults collection
-    const studentsList = resultsData.students || [];
-    const batchPromises = studentsList.map(async std => {
-      const pubDocId = `pub_${std.studentId}_${courseCode}_${timelineSettings.session.replace(/\//g, "-")}_${timelineSettings.semester}`;
-      
-      const total = std.total || 0;
-      let grade = std.grade || "F";
-      let gp = std.gp !== undefined ? std.gp : 0;
-      let remark = std.remark || "FAIL";
+      // Prevent duplicate publications
+      if (resultsData.status === "Published") {
+        throw new Error("This results sheet has already been published.");
+      }
 
-      const studentPayload = {
-        studentId: std.studentId,
-        fullName: std.fullName,
-        matricNumber: std.matricNumber,
-        courseCode: courseCode,
-        courseTitle: courseTitle,
-        creditUnit: creditUnit,
-        attendance: std.attendance !== undefined ? std.attendance : 0,
-        assignment: std.assignment !== undefined ? std.assignment : 0,
-        test: std.test !== undefined ? std.test : 0,
-        practical: std.practical !== undefined ? std.practical : 0,
-        examScore: std.examScore !== undefined ? std.examScore : 0,
-        total: total,
-        grade: grade,
-        gp: gp,
-        remark: remark,
-        semester: timelineSettings.semester,
-        academicSession: timelineSettings.session,
+      if (resultsData.status !== "Approved") {
+        throw new Error("Only approved results can be published.");
+      }
+
+      const now = new Date();
+      const dateStr = now.toLocaleDateString();
+      const timeStr = now.toLocaleTimeString();
+      const timestamp = now.toISOString();
+
+      const lecturerName = currentLecturerDoc ? (currentLecturerDoc.fullName || "Lecturer") : "Lecturer";
+      const lecturerId = currentLecturerDoc ? (currentLecturerDoc.lecturerId || "Unknown Lecturer") : "Unknown Lecturer";
+
+      // Determine course details for the student records
+      const matchedCourse = officialCoursesList.find(c => c.courseCode === courseCode);
+      const courseTitle = matchedCourse ? (matchedCourse.courseTitle || matchedCourse.title || "Theology Course") : "Theology Course";
+      const creditUnit = matchedCourse ? parseInt(matchedCourse.creditUnit || matchedCourse.credits || 3) : 3;
+
+      // Copy to publishedResults collection
+      const studentsList = resultsData.students || [];
+      if (studentsList.length === 0) {
+        throw new Error("No student records exist in this approved results sheet.");
+      }
+
+      studentsList.forEach(std => {
+        const safeStudentId = std.studentId.replace(/\//g, "-").trim();
+        if (!safeStudentId) {
+          throw new Error("Invalid student ID found in the approved results sheet.");
+        }
+
+        const pubDocId = `pub_${safeStudentId}_${safeCourseCode}_${safeSession}_${safeSemester}`;
+        const pubPath = ["publishedResults", pubDocId];
+        if (pubPath.some(seg => !seg || seg.trim() === "")) {
+          throw new Error("Invalid published results reference segments.");
+        }
+        const pubRef = doc(db, ...pubPath);
+
+        const total = std.total || 0;
+        let grade = std.grade || "F";
+        let gp = std.gp !== undefined ? std.gp : 0;
+        let remark = std.remark || "FAIL";
+
+        const studentPayload = {
+          studentId: std.studentId,
+          fullName: std.fullName,
+          matricNumber: std.matricNumber,
+          courseCode: courseCode,
+          courseTitle: courseTitle,
+          creditUnit: creditUnit,
+          attendance: std.attendance !== undefined ? std.attendance : 0,
+          assignment: std.assignment !== undefined ? std.assignment : 0,
+          test: std.test !== undefined ? std.test : 0,
+          practical: std.practical !== undefined ? std.practical : 0,
+          examScore: std.examScore !== undefined ? std.examScore : 0,
+          total: total,
+          grade: grade,
+          gp: gp,
+          remark: remark,
+          semester: timelineSettings.semester,
+          academicSession: timelineSettings.session,
+          status: "Published",
+          publishedBy: lecturerName,
+          publishedDate: dateStr,
+          publishedTime: timeStr,
+          publishedAt: timestamp,
+          publishedTimestamp: timestamp
+        };
+
+        transaction.set(pubRef, studentPayload);
+      });
+
+      // Update history
+      let histList = [];
+      if (histSnap.exists()) {
+        histList = histSnap.data().history || [];
+      }
+      histList.push({
+        action: "Published",
+        approver: lecturerName,
+        approverId: lecturerId,
+        comments: "Results officially published to Student Portals.",
+        date: dateStr,
+        time: timeStr,
+        timestamp: timestamp
+      });
+
+      transaction.set(histRef, { 
+        courseCode, 
+        academicSession: timelineSettings.session, 
+        semester: timelineSettings.semester, 
+        history: histList 
+      });
+
+      // Update workflow status of main results doc to Published
+      transaction.update(resultsRef, {
         status: "Published",
-        publishedBy: lecturerName,
+        publishedBy: lecturerId,
+        publishedByName: lecturerName,
         publishedDate: dateStr,
         publishedTime: timeStr,
-        publishedAt: timestamp,
-        publishedTimestamp: timestamp
-      };
-
-      await setDoc(doc(db, "publishedResults", pubDocId), studentPayload);
+        publishedTimestamp: timestamp,
+        lastUpdated: timestamp
+      });
     });
-
-    await Promise.all(batchPromises);
-
-    // Save history entry
-    const histRef = doc(db, "approvalHistory", docId);
-    const histSnap = await getDoc(histRef);
-    let histList = [];
-    if (histSnap.exists()) {
-      histList = histSnap.data().history || [];
-    }
-    histList.push({
-      action: "Published",
-      approver: lecturerName,
-      approverId: lecturerId,
-      comments: "Results officially published to Student Portals.",
-      date: dateStr,
-      time: timeStr,
-      timestamp: timestamp
-    });
-    await setDoc(histRef, { courseCode, academicSession: timelineSettings.session, semester: timelineSettings.semester, history: histList });
 
     window.showToast("Results published successfully.", "success");
 
@@ -1781,7 +1825,9 @@ async function handleResultPublishAllFlow() {
   window.showToast("Scanning and publishing all approved result sheets...", "info");
 
   try {
+    const { runTransaction, doc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
     let publishCount = 0;
+
     const now = new Date();
     const dateStr = now.toLocaleDateString();
     const timeStr = now.toLocaleTimeString();
@@ -1791,87 +1837,124 @@ async function handleResultPublishAllFlow() {
     const lecturerId = currentLecturerDoc.lecturerId || "Unknown Lecturer";
 
     for (const code of assignedCodes) {
-      const docId = `${code}_${timelineSettings.session.replace(/\//g, "-")}_${timelineSettings.semester}`;
-      const resultsRef = doc(db, "results", docId);
-      const resultsSnap = await getDoc(resultsRef);
+      const safeCourseCode = code.replace(/\//g, "-").trim();
+      const safeSession = timelineSettings.session.replace(/\//g, "-").trim();
+      const safeSemester = timelineSettings.semester.replace(/\//g, "-").trim();
 
-      if (resultsSnap.exists()) {
-        const resultsData = resultsSnap.data();
-        if (resultsData.status === "Approved") {
-          // Update status to Published
-          await updateDoc(resultsRef, {
-            status: "Published",
-            publishedBy: lecturerId,
-            publishedByName: lecturerName,
-            publishedDate: dateStr,
-            publishedTime: timeStr,
-            publishedTimestamp: timestamp,
-            lastUpdated: timestamp
-          });
+      if (!safeCourseCode || !safeSession || !safeSemester) {
+        continue;
+      }
 
-          const matchedCourse = officialCoursesList.find(c => c.courseCode === code);
-          const courseTitle = matchedCourse ? (matchedCourse.courseTitle || matchedCourse.title || "Theology Course") : "Theology Course";
-          const creditUnit = matchedCourse ? parseInt(matchedCourse.creditUnit || matchedCourse.credits || 3) : 3;
+      const docId = `${safeCourseCode}_${safeSession}_${safeSemester}`;
+      const resultsPath = ["results", docId];
+      if (resultsPath.some(seg => !seg || seg.trim() === "")) {
+        continue;
+      }
+      const resultsRef = doc(db, ...resultsPath);
 
-          const studentsList = resultsData.students || [];
-          const batchPromises = studentsList.map(async std => {
-            const pubDocId = `pub_${std.studentId}_${code}_${timelineSettings.session.replace(/\//g, "-")}_${timelineSettings.semester}`;
-            const total = std.total || 0;
-            let grade = std.grade || "F";
-            let gp = std.gp !== undefined ? std.gp : 0;
-            let remark = std.remark || "FAIL";
+      try {
+        await runTransaction(db, async (transaction) => {
+          const resultsSnap = await transaction.get(resultsRef);
+          if (resultsSnap.exists()) {
+            const resultsData = resultsSnap.data();
+            if (resultsData.status === "Approved") {
+              const matchedCourse = officialCoursesList.find(c => c.courseCode === code);
+              const courseTitle = matchedCourse ? (matchedCourse.courseTitle || matchedCourse.title || "Theology Course") : "Theology Course";
+              const creditUnit = matchedCourse ? parseInt(matchedCourse.creditUnit || matchedCourse.credits || 3) : 3;
 
-            const studentPayload = {
-              studentId: std.studentId,
-              fullName: std.fullName,
-              matricNumber: std.matricNumber,
-              courseCode: code,
-              courseTitle: courseTitle,
-              creditUnit: creditUnit,
-              attendance: std.attendance !== undefined ? std.attendance : 0,
-              assignment: std.assignment !== undefined ? std.assignment : 0,
-              test: std.test !== undefined ? std.test : 0,
-              practical: std.practical !== undefined ? std.practical : 0,
-              examScore: std.examScore !== undefined ? std.examScore : 0,
-              total: total,
-              grade: grade,
-              gp: gp,
-              remark: remark,
-              semester: timelineSettings.semester,
-              academicSession: timelineSettings.session,
-              status: "Published",
-              publishedBy: lecturerName,
-              publishedDate: dateStr,
-              publishedTime: timeStr,
-              publishedAt: timestamp,
-              publishedTimestamp: timestamp
-            };
+              const studentsList = resultsData.students || [];
+              if (studentsList.length > 0) {
+                // Perform all student writes inside the transaction
+                studentsList.forEach(std => {
+                  const safeStudentId = std.studentId.replace(/\//g, "-").trim();
+                  const pubDocId = `pub_${safeStudentId}_${safeCourseCode}_${safeSession}_${safeSemester}`;
+                  const pubPath = ["publishedResults", pubDocId];
+                  if (pubPath.some(seg => !seg || seg.trim() === "")) {
+                    throw new Error("Invalid published results reference segments in Bulk Publish.");
+                  }
+                  const pubRef = doc(db, ...pubPath);
 
-            await setDoc(doc(db, "publishedResults", pubDocId), studentPayload);
-          });
+                  const total = std.total || 0;
+                  let grade = std.grade || "F";
+                  let gp = std.gp !== undefined ? std.gp : 0;
+                  let remark = std.remark || "FAIL";
 
-          await Promise.all(batchPromises);
+                  const studentPayload = {
+                    studentId: std.studentId,
+                    fullName: std.fullName,
+                    matricNumber: std.matricNumber,
+                    courseCode: code,
+                    courseTitle: courseTitle,
+                    creditUnit: creditUnit,
+                    attendance: std.attendance !== undefined ? std.attendance : 0,
+                    assignment: std.assignment !== undefined ? std.assignment : 0,
+                    test: std.test !== undefined ? std.test : 0,
+                    practical: std.practical !== undefined ? std.practical : 0,
+                    examScore: std.examScore !== undefined ? std.examScore : 0,
+                    total: total,
+                    grade: grade,
+                    gp: gp,
+                    remark: remark,
+                    semester: timelineSettings.semester,
+                    academicSession: timelineSettings.session,
+                    status: "Published",
+                    publishedBy: lecturerName,
+                    publishedDate: dateStr,
+                    publishedTime: timeStr,
+                    publishedAt: timestamp,
+                    publishedTimestamp: timestamp
+                  };
 
-          // Save history entry
-          const histRef = doc(db, "approvalHistory", docId);
-          const histSnap = await getDoc(histRef);
-          let histList = [];
-          if (histSnap.exists()) {
-            histList = histSnap.data().history || [];
+                  transaction.set(pubRef, studentPayload);
+                });
+
+                // Save history entry
+                const histPath = ["approvalHistory", docId];
+                if (histPath.some(seg => !seg || seg.trim() === "")) {
+                  throw new Error("Invalid approval history reference segments in Bulk Publish.");
+                }
+                const histRef = doc(db, ...histPath);
+                const histSnap = await transaction.get(histRef);
+                let histList = [];
+                if (histSnap.exists()) {
+                  histList = histSnap.data().history || [];
+                }
+                histList.push({
+                  action: "Published",
+                  approver: lecturerName,
+                  approverId: lecturerId,
+                  comments: "Results officially published to Student Portals via Bulk Publish.",
+                  date: dateStr,
+                  time: timeStr,
+                  timestamp: timestamp
+                });
+
+                transaction.set(histRef, { 
+                  courseCode: code, 
+                  academicSession: timelineSettings.session, 
+                  semester: timelineSettings.semester, 
+                  history: histList 
+                });
+
+                // Update the main results document to Published inside the transaction
+                transaction.update(resultsRef, {
+                  status: "Published",
+                  publishedBy: lecturerId,
+                  publishedByName: lecturerName,
+                  publishedDate: dateStr,
+                  publishedTime: timeStr,
+                  publishedTimestamp: timestamp,
+                  lastUpdated: timestamp
+                });
+
+                publishCount++;
+              }
+            }
           }
-          histList.push({
-            action: "Published",
-            approver: lecturerName,
-            approverId: lecturerId,
-            comments: "Results officially published to Student Portals.",
-            date: dateStr,
-            time: timeStr,
-            timestamp: timestamp
-          });
-          await setDoc(histRef, { courseCode: code, academicSession: timelineSettings.session, semester: timelineSettings.semester, history: histList });
-
-          publishCount++;
-        }
+        });
+      } catch (courseErr) {
+        console.error(`Failed to publish course ${code}:`, courseErr);
+        throw new Error(`Course ${code} publication failed: ${courseErr.message}`);
       }
     }
 
