@@ -1243,17 +1243,20 @@
           </div>
 
           <!-- ================= FORM NAVIGATION BAR ================= -->
-          <div class="form-navigation">
-            <button type="button" class="btn btn-step-prev" id="btnPrev" style="display: none;">
-              <i class="fa-solid fa-arrow-left"></i> Previous Step
-            </button>
-            <div style="flex-grow: 1;"></div>
-            <button type="button" class="btn btn-primary" id="btnNext">
-              Next Step <i class="fa-solid fa-arrow-right"></i>
-            </button>
-            <button type="submit" class="btn btn-success" id="btnSubmit" style="display: none; background-color: #28a745; border-color: #28a745;">
-              <i class="fa-solid fa-file-shield"></i> Submit Official Application
-            </button>
+          <div class="form-navigation" style="display: flex; justify-content: space-between; align-items: center; margin-top: 2rem;">
+            <div>
+              <button type="button" class="btn" id="newBtnBack" style="display: none; background-color: var(--bg-slate); color: var(--primary); border: 1px solid var(--border-color); padding: 0.75rem 1.5rem; font-weight: 700; border-radius: var(--border-radius-md);">
+                ⬅️ BACK
+              </button>
+            </div>
+            <div>
+              <button type="button" class="btn btn-primary" id="newBtnNext" style="padding: 0.75rem 1.5rem; font-weight: 700; border-radius: var(--border-radius-md);">
+                ➡️ NEXT
+              </button>
+              <button type="submit" class="btn btn-success" id="newBtnSubmit" style="display: none; background-color: #28a745; border-color: #28a745; padding: 0.75rem 1.5rem; font-weight: 700; border-radius: var(--border-radius-md);">
+                ✅ SUBMIT APPLICATION
+              </button>
+            </div>
           </div>
 
         </form>
@@ -1429,7 +1432,7 @@
   
   <script type="module">
     import { db } from '../assets/js/firebase-init.js';
-    import { collection, addDoc, getDocs, query, orderBy, limit, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+    import { collection, addDoc, getDocs, query, where, orderBy, limit, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 
     // Global timeline variables (populated dynamically from settings)
     let activeSession = "2026/2027";
@@ -1456,23 +1459,98 @@
     const totalSteps = 5;
 
     // Elements
-    const btnNext = document.getElementById('btnNext');
-    const btnPrev = document.getElementById('btnPrev');
-    const btnSubmit = document.getElementById('btnSubmit');
     const errorBanner = document.getElementById('errorBanner');
     const errorBannerText = document.getElementById('errorBannerText');
     const stepLine = document.getElementById('stepProgressLine');
     const loadingOverlay = document.getElementById('formLoadingOverlay');
 
+    // Brand-new Navigation Elements
+    const newBtnNext = document.getElementById('newBtnNext');
+    const newBtnBack = document.getElementById('newBtnBack');
+    const newBtnSubmit = document.getElementById('newBtnSubmit');
+
     // Load active timeline settings on start
     await loadTimelineSettings();
+
+    // Draft Persistence Management
+    function saveDraftData() {
+      const draft = {
+        fullName: document.getElementById('fullName')?.value || "",
+        gender: document.getElementById('gender')?.value || "",
+        dateOfBirth: document.getElementById('dateOfBirth')?.value || "",
+        maritalStatus: document.getElementById('maritalStatus')?.value || "",
+        nationality: document.getElementById('nationality')?.value || "",
+        stateOfOrigin: document.getElementById('stateOfOrigin')?.value || "",
+        lga: document.getElementById('lga')?.value || "",
+        address: document.getElementById('address')?.value || "",
+        phone: document.getElementById('phone')?.value || "",
+        whatsapp: document.getElementById('whatsapp')?.value || "",
+        email: document.getElementById('email')?.value || "",
+        previousSchool: document.getElementById('previousSchool')?.value || "",
+        highestQualification: document.getElementById('highestQualification')?.value || "",
+        yearOfGraduation: document.getElementById('yearOfGraduation')?.value || "",
+        churchName: document.getElementById('churchName')?.value || "",
+        churchAddress: document.getElementById('churchAddress')?.value || "",
+        pastorsName: document.getElementById('pastorsName')?.value || "",
+        pastorsPhone: document.getElementById('pastorsPhone')?.value || "",
+        yearsInMinistry: document.getElementById('yearsInMinistry')?.value || "",
+        currentPosition: document.getElementById('currentPosition')?.value || "",
+        nextOfKinName: document.getElementById('nextOfKinName')?.value || "",
+        nextOfKinRelationship: document.getElementById('nextOfKinRelationship')?.value || "",
+        nextOfKinPhone: document.getElementById('nextOfKinPhone')?.value || "",
+        nextOfKinAddress: document.getElementById('nextOfKinAddress')?.value || "",
+        currentStep: currentStep
+      };
+      sessionStorage.setItem('dimabin_admission_form_draft', JSON.stringify(draft));
+    }
+
+    function loadDraftData() {
+      const raw = sessionStorage.getItem('dimabin_admission_form_draft');
+      if (!raw) return;
+      try {
+        const draft = JSON.parse(raw);
+        if (document.getElementById('fullName')) document.getElementById('fullName').value = draft.fullName;
+        if (document.getElementById('gender')) document.getElementById('gender').value = draft.gender;
+        if (document.getElementById('dateOfBirth')) document.getElementById('dateOfBirth').value = draft.dateOfBirth;
+        if (document.getElementById('maritalStatus')) document.getElementById('maritalStatus').value = draft.maritalStatus;
+        if (document.getElementById('nationality')) document.getElementById('nationality').value = draft.nationality;
+        if (document.getElementById('stateOfOrigin')) document.getElementById('stateOfOrigin').value = draft.stateOfOrigin;
+        if (document.getElementById('lga')) document.getElementById('lga').value = draft.lga;
+        if (document.getElementById('address')) document.getElementById('address').value = draft.address;
+        if (document.getElementById('phone')) document.getElementById('phone').value = draft.phone;
+        if (document.getElementById('whatsapp')) document.getElementById('whatsapp').value = draft.whatsapp;
+        if (document.getElementById('email')) document.getElementById('email').value = draft.email;
+        if (document.getElementById('previousSchool')) document.getElementById('previousSchool').value = draft.previousSchool;
+        if (document.getElementById('highestQualification')) document.getElementById('highestQualification').value = draft.highestQualification;
+        if (document.getElementById('yearOfGraduation')) document.getElementById('yearOfGraduation').value = draft.yearOfGraduation;
+        if (document.getElementById('churchName')) document.getElementById('churchName').value = draft.churchName;
+        if (document.getElementById('churchAddress')) document.getElementById('churchAddress').value = draft.churchAddress;
+        if (document.getElementById('pastorsName')) document.getElementById('pastorsName').value = draft.pastorsName;
+        if (document.getElementById('pastorsPhone')) document.getElementById('pastorsPhone').value = draft.pastorsPhone;
+        if (document.getElementById('yearsInMinistry')) document.getElementById('yearsInMinistry').value = draft.yearsInMinistry;
+        if (document.getElementById('currentPosition')) document.getElementById('currentPosition').value = draft.currentPosition;
+        if (document.getElementById('nextOfKinName')) document.getElementById('nextOfKinName').value = draft.nextOfKinName;
+        if (document.getElementById('nextOfKinRelationship')) document.getElementById('nextOfKinRelationship').value = draft.nextOfKinRelationship;
+        if (document.getElementById('nextOfKinPhone')) document.getElementById('nextOfKinPhone').value = draft.nextOfKinPhone;
+        if (document.getElementById('nextOfKinAddress')) document.getElementById('nextOfKinAddress').value = draft.nextOfKinAddress;
+        
+        if (draft.currentStep) {
+          currentStep = draft.currentStep;
+        }
+      } catch (e) {
+        console.error("Error loading draft data:", e);
+      }
+    }
 
     // Setup Multi-Step Form Controls
     function updateStepsUI() {
       // Hide all contents
       document.querySelectorAll('.form-step-content').forEach(el => el.classList.remove('active'));
       // Show active content
-      document.querySelector(`.form-step-content[data-step="${currentStep}"]`).classList.add('active');
+      const activeContent = document.querySelector(`.form-step-content[data-step="${currentStep}"]`);
+      if (activeContent) {
+        activeContent.classList.add('active');
+      }
 
       // Update progress dots
       document.querySelectorAll('.step-dot').forEach(dot => {
@@ -1486,27 +1564,38 @@
       });
 
       // Update progress line width
-      const progressPercent = ((currentStep - 1) / (totalSteps - 1)) * 100;
-      stepLine.style.width = `${progressPercent}%`;
+      if (stepLine) {
+        const progressPercent = ((currentStep - 1) / (totalSteps - 1)) * 100;
+        stepLine.style.width = `${progressPercent}%`;
+      }
 
-      // Update Navigation Buttons visibility
-      btnPrev.style.display = currentStep > 1 ? 'block' : 'none';
-      if (currentStep === totalSteps) {
-        btnNext.style.display = 'none';
-        btnSubmit.style.display = 'block';
+      // Update brand-new buttons navigation UI
+      if (currentStep === 1) {
+        newBtnBack.style.display = 'none';
+        newBtnNext.style.display = 'block';
+        newBtnSubmit.style.display = 'none';
+      } else if (currentStep === totalSteps) {
+        newBtnBack.style.display = 'block';
+        newBtnNext.style.display = 'none';
+        newBtnSubmit.style.display = 'block';
       } else {
-        btnNext.style.display = 'block';
-        btnSubmit.style.display = 'none';
+        newBtnBack.style.display = 'block';
+        newBtnNext.style.display = 'block';
+        newBtnSubmit.style.display = 'none';
       }
 
       // Scroll to the top of apply-now section for comfort
-      document.getElementById('apply-now-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const targetSec = document.getElementById('apply-now-section');
+      if (targetSec) {
+        targetSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     }
 
     // Validate a specific step before proceeding
     function validateStep(step) {
       errorBanner.style.display = 'none';
       const activeContent = document.querySelector(`.form-step-content[data-step="${step}"]`);
+      if (!activeContent) return true;
       const inputs = activeContent.querySelectorAll('input[required], select[required], textarea[required]');
       
       let isValid = true;
@@ -1558,16 +1647,18 @@
       return isValid;
     }
 
-    // Button event listeners
-    btnNext.addEventListener('click', () => {
+    // New button event listeners
+    newBtnNext.addEventListener('click', () => {
       if (validateStep(currentStep)) {
+        saveDraftData();
         currentStep++;
         updateStepsUI();
       }
     });
 
-    btnPrev.addEventListener('click', () => {
+    newBtnBack.addEventListener('click', () => {
       errorBanner.style.display = 'none';
+      saveDraftData();
       currentStep--;
       updateStepsUI();
     });
@@ -1936,6 +2027,7 @@
     async function checkExistingApplication() {
       let sessionStr = sessionStorage.getItem("dimabin_student_session") || localStorage.getItem("dimabin_student_session");
       let email = "";
+      let hasPreExisting = false;
       if (sessionStr) {
         try {
           let parsed = JSON.parse(sessionStr);
@@ -1965,6 +2057,7 @@
           if (!snap.empty) {
             currentApplication = snap.docs[0].data();
             renderApplicationSlip(currentApplication);
+            hasPreExisting = true;
             
             // Transition views to success card immediately
             document.getElementById('applicationFormContainer').style.display = 'none';
@@ -1975,6 +2068,12 @@
         } finally {
           loadingOverlay.style.display = 'none';
         }
+      }
+
+      if (!hasPreExisting) {
+        // Load draft and initialize the multi-step navigation system UI
+        loadDraftData();
+        updateStepsUI();
       }
     }
 
@@ -2003,7 +2102,7 @@
 
       // Activate loader
       loadingOverlay.style.display = 'flex';
-      btnSubmit.disabled = true;
+      newBtnSubmit.disabled = true;
 
       try {
         // Generate Unique Application ID sequentially
@@ -2084,6 +2183,9 @@
         sessionStorage.setItem("dimabin_last_submitted_email", appData.email);
         currentApplication = appData;
 
+        // Clear draft on success
+        sessionStorage.removeItem('dimabin_admission_form_draft');
+
         // Render success slip dynamically
         renderApplicationSlip(appData);
 
@@ -2097,7 +2199,7 @@
         await window.dimabinAlert(`Failed to submit application: ${err.message}. Please check your connection and try again.`, "error", "Submission Failed");
       } finally {
         loadingOverlay.style.display = 'none';
-        btnSubmit.disabled = false;
+        newBtnSubmit.disabled = false;
       }
     });
 
